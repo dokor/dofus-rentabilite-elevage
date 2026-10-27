@@ -27,3 +27,7 @@ C’est un relevé historique déclaré par son auteur, sans données individuel
 La formule théorique et le coefficient paramétrable sont supprimés. Les niveaux inconnus restent inconnus, y compris entre deux mesures. Le mode focus manquant ne reçoit pas le taux sans focus. Une seule mesure permet de chiffrer ce scénario, mais n’autorise aucun classement de niveaux. À partir de deux niveaux comparables, le classement indique seulement le meilleur parmi les niveaux mesurés, sans affirmer un optimum global ni une différence statistiquement significative.
 
 Pour ajouter une référence publique, consigner le niveau exact, le mode, l’effectif brisé, le nombre brut de runes, la date, la version si connue et un lien vers la preuve. Ne pas convertir un coefficient de concasseur en probabilité d’obtenir une Ga Pa.
+
+## Saisie directe pour la rentabilité
+
+Le calculateur propose aussi un mode « Taux saisi », indépendant des relevés. Il permet de tester immédiatement une hypothèse en pourcentage à partir des prix des filets, des carburants et des Ga Pa. Le taux prérempli à 38,32 % reprend le point public du niveau 53 sans focus ; toute modification ou utilisation à un autre niveau reste une hypothèse explicitement indiquée. Ce mode ne crée aucun relevé ni classement et ne recopie jamais automatiquement le taux sans focus vers le focus PA. Les modes mesurés gardent leurs règles de couverture exacte.

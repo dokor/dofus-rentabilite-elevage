@@ -6,7 +6,7 @@ export const NETS = [
   { id: 'both', name: 'Filet multiplicateur de Volkorne renforcé', price: 42000, yield: 13.5, level: 200, reference: '42 000 k · 12–15 montures' },
 ];
 export const SALE_TAX = 0.02;
-export const CONFIG_VERSION = 3;
+export const CONFIG_VERSION = 4;
 const sizes = ['Minuscule', 'Petit', '', 'Grand', 'Gigantesque'];
 export const FUELS = ['Extrait', 'Philtre', 'Potion', 'Élixir'].flatMap((family, f) =>
   sizes.map((size, s) => ({ id: `fuel-${f}-${s}`, name: `${family === 'Potion' ? size.replace('Petit', 'Petite').replace('Grand', 'Grande') : size} ${family} d’expérience de monture`.trim(), charge: (s + 1) * 2000, family, ceiling: [80000, 140000, 180000, 200000][f] }))
@@ -19,7 +19,7 @@ export function defaultConfig() {
     fuelId: 'fuel-0-2', fuelPrices: Object.fromEntries(FUELS.map(f => [f.id, 1500])),
     charge: 6000, xpHour: 3600, paddocks: 2, reserve: 0,
     captureMinutes: 3, handlingMinutes: 5, otherCosts: 0, fixedInvestment: 0,
-    loot: 0, otherRunes: 0, model: 'community', observations: [], objective: 'profit',
+    loot: 0, otherRunes: 0, model: 'manual', normalRate: 38.32, focusRate: null, observations: [], objective: 'profit',
     scenarioName: 'Mon scénario',
   };
 }
@@ -39,7 +39,8 @@ export function validate(c) {
   if (c.focusCount > c.count) errors.push('Le nombre en focus dépasse le lot.');
   if (c.paddocks < 1 || c.paddocks > 6) errors.push('Choisissez entre 1 et 6 enclos de 10 places.');
   if (c.charge <= 0 || c.xpHour <= 0) errors.push('Le carburant et la vitesse d’XP doivent être strictement positifs.');
-  if (!['community', 'observed'].includes(c.model)) errors.push('Source de rendement inconnue.');
+  if (!['manual', 'community', 'observed'].includes(c.model)) errors.push('Source de rendement inconnue.');
+  for (const key of ['normalRate', 'focusRate']) if (c[key] !== null && (!Number.isFinite(c[key]) || c[key] < 0 || c[key] > 10000)) errors.push('Le taux de Ga Pa doit être compris entre 0 et 10 000 %.');
   if (!['profit', 'hour', 'roi'].includes(c.objective)) errors.push('Objectif inconnu.');
   if (!Array.isArray(c.nets) || c.nets.length !== NETS.length || NETS.some(n => !c.nets.some(v => v.id === n.id))) errors.push('La liste des filets est invalide.');
   else for (const net of c.nets) {
@@ -62,9 +63,9 @@ export function validate(c) {
 
 export function hydrate(raw, version = CONFIG_VERSION) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Configuration invalide.');
-  if (![1, 2, CONFIG_VERSION].includes(version)) throw new Error('Version de configuration inconnue.');
+  if (![1, 2, 3, CONFIG_VERSION].includes(version)) throw new Error('Version de configuration inconnue.');
   const defaults = defaultConfig();
-  const c = Object.fromEntries(Object.keys(defaults).map(k => [k, raw[k] ?? defaults[k]]));
+  const c = Object.fromEntries(Object.keys(defaults).map(k => [k, Object.hasOwn(raw, k) && raw[k] !== undefined ? raw[k] : defaults[k]]));
   // Keep custom prices and observations, but replace obsolete example defaults.
   // Old tax and Sage settings are intentionally excluded from the new schema.
   if (version === 1) {
@@ -85,6 +86,11 @@ export function hydrate(raw, version = CONFIG_VERSION) {
 }
 
 export function runeYield(level, c) {
+  if (c.model === 'manual') {
+    // A rate entered for this scenario is an assumption at its chosen level,
+    // never an observed yield curve that could justify a level recommendation.
+    return level === c.level ? { normal: c.normalRate === null ? null : c.normalRate / 100, focus: c.focusRate === null ? null : c.focusRate / 100, kind: 'taux saisi' } : null;
+  }
   if (c.model === 'community') {
     const row = PUBLIC_CRUSHING_OBSERVATIONS.find(r => r.level === level);
     return row ? { normal: row.normal, focus: row.focus, kind: 'relevé public', sampleSize: row.mounts, source: row.source } : null;
@@ -132,7 +138,9 @@ export function calculate(c, level = c.level) {
   const revenue = gross * (1 - SALE_TAX);
   const profit = revenue - costs;
   const breakEven = runes > 0 ? Math.max(0, (costs / (1 - SALE_TAX) - otherRevenue) / runes) : null;
-  return { ...common, ...yieldData, available: true, noFocusCount, normalRunes, focusRunes, runes, runeRevenue, otherRevenue, gross, revenue, profit, roi: costs > 0 ? profit / costs * 100 : null, perHour: elapsedHours > 0 ? profit / elapsedHours : null, perActiveHour: activeHours > 0 ? profit / activeHours : null, breakEven, firstCycleProfit: profit - c.fixedInvestment, payback: c.fixedInvestment === 0 ? 0 : profit > 0 ? Math.ceil(c.fixedInvestment / profit) : null };
+  const requiredGaPaRevenue = Math.max(0, costs / (1 - SALE_TAX) - otherRevenue);
+  const breakEvenRate = c.runePrice > 0 ? requiredGaPaRevenue / (c.count * c.runePrice) * 100 : requiredGaPaRevenue === 0 ? 0 : null;
+  return { ...common, ...yieldData, available: true, noFocusCount, normalRunes, focusRunes, runes, runeRevenue, otherRevenue, gross, revenue, profit, roi: costs > 0 ? profit / costs * 100 : null, perHour: elapsedHours > 0 ? profit / elapsedHours : null, perActiveHour: activeHours > 0 ? profit / activeHours : null, breakEven, breakEvenRate, firstCycleProfit: profit - c.fixedInvestment, payback: c.fixedInvestment === 0 ? 0 : profit > 0 ? Math.ceil(c.fixedInvestment / profit) : null };
 }
 
 export function compareLevels(c) {

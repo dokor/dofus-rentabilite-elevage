@@ -15,7 +15,7 @@ test('local server serves the app and modules, refuses traversal and returns mis
   const page = await fetch(origin);
   assert.equal(page.status, 200);
   assert.match(page.headers.get('content-type'), /text\/html/);
-  assert.match(await page.text(), /Chaque Volkorne compte/);
+  assert.match(await page.text(), /Votre élevage est-il rentable/);
   for (const file of ['app.js', 'calculator.js', 'xp-data.js', 'crushing-data.js', 'styles.css', 'icon.svg']) assert.equal((await fetch(`${origin}/${file}`)).status, 200, file);
   assert.equal((await fetch(`${origin}/missing-file.js`)).status, 404);
   assert.equal((await fetch(`${origin}/%2e%2e%2fpackage.json`)).status, 403);

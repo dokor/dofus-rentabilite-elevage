@@ -8,6 +8,72 @@ import { defaultConfig, validate, hydrate, compareNets, calculate, compareLevels
 function scenario(overrides = {}) { return { ...defaultConfig(), level: 55, focusCount: 10, model: 'observed', observations: [{ level: 55, normal: .4175, focus: .4175 }], ...overrides }; }
 function near(actual, expected) { assert.ok(Math.abs(actual - expected) < 1e-7, `${actual} ≠ ${expected}`); }
 
+test('direct percentage inputs calculate profit without any observation table', () => {
+  const c = { ...defaultConfig(), normalRate: 40, observations: [] };
+  assert.equal(c.model, 'manual');
+  assert.equal(validate(c).length, 0);
+  const r = calculate(c);
+  assert.equal(r.kind, 'taux saisi');
+  assert.equal(r.runes, 8);
+  near(r.costs, 73500);
+  near(r.revenue, 156800);
+  near(r.profit, 83300);
+  near(calculate({ ...c, normalRate: 20 }).profit, 4900);
+  near(calculate({ ...c, normalRate: 125 }).runes, 25);
+  near(calculate({ ...c, normalRate: 0 }).profit, -73500);
+});
+
+test('net and fuel price edits change direct profit by their full lot cost', () => {
+  const c = { ...defaultConfig(), normalRate: 40 };
+  const netPrice = { ...c, nets: c.nets.map(n => ({ ...n, price: n.id === c.netId ? 20000 : n.price })) };
+  near(calculate(netPrice).profit, 83300 - 3 * 2500);
+  const fuelPrice = { ...c, fuelPrices: { ...c.fuelPrices, [c.fuelId]: 2000 } };
+  near(calculate(fuelPrice).profit, 83300 - 14 * 500);
+});
+
+test('manual focus and normal percentages are independent and missing is not zero', () => {
+  const c = { ...defaultConfig(), focusCount: 10, normalRate: 40, focusRate: 60 };
+  assert.equal(calculate(c).runes, 10);
+  assert.equal(calculate({ ...c, focusRate: null }).available, false);
+  assert.equal(calculate({ ...c, focusRate: 0 }).runes, 4);
+  assert.equal(calculate({ ...c, focusCount: 20, normalRate: null }).runes, 12);
+  assert.equal(calculate({ ...c, focusCount: 0, focusRate: null }).runes, 8);
+});
+
+test('manual rates apply only to the selected scenario and never rank levels', () => {
+  const c = { ...defaultConfig(), level: 55, normalRate: 40 };
+  assert.equal(calculate(c).available, true);
+  assert.equal(calculate(c, 53).available, false);
+  assert.equal(runeYield(56, c), null);
+  assert.equal(bestLevel(compareLevels(c), 'profit'), null);
+  assert.equal(bestLevel([calculate(c), calculate({ ...c, level: 60 })], 'profit'), null);
+});
+
+test('the minimum average percentage covers costs after tax at the selected rune price', () => {
+  const c = { ...defaultConfig(), normalRate: 40 };
+  near(calculate(c).breakEvenRate, 18.75);
+  near(calculate({ ...c, normalRate: calculate(c).breakEvenRate }).profit, 0);
+  const mixed = { ...c, focusCount: 10, focusRate: 60, loot: 1000, otherRunes: 100 };
+  const rate = calculate(mixed).breakEvenRate;
+  near(calculate({ ...mixed, normalRate: rate, focusRate: rate }).profit, 0);
+  assert.equal(calculate({ ...c, runePrice: 0 }).breakEvenRate, null);
+  assert.equal(calculate({ ...c, runePrice: 0, loot: 100000 }).breakEvenRate, 0);
+});
+
+test('v4 JSON preserves blank and zero rates, while v3 measured sources remain intact', () => {
+  const c = { ...defaultConfig(), normalRate: null, focusRate: 0 };
+  assert.deepEqual(hydrate(JSON.parse(JSON.stringify(c)), 4), c);
+  const legacy = { ...scenario(), model: 'community' };
+  delete legacy.normalRate;
+  delete legacy.focusRate;
+  const migrated = hydrate(legacy, 3);
+  assert.equal(migrated.model, 'community');
+  assert.equal(migrated.level, 55);
+  assert.equal(migrated.focusCount, 10);
+  assert.deepEqual(migrated.observations, legacy.observations);
+  for (const rate of [-1, Infinity, NaN, 10001]) assert.ok(validate({ ...defaultConfig(), normalRate: rate }).length);
+});
+
 test('net defaults use the supplied price and capture range midpoints', () => {
   assert.deepEqual(NETS.map(n => [n.id, n.level, n.price, n.yield]), [
     ['reinforced', 149, 17500, 7],
@@ -48,8 +114,8 @@ test('20 level-55 mounts, 10 focused, use 3 reinforced nets and 16 fuel units', 
 });
 
 test('public sample never fabricates a focused yield', () => {
-  const noFocus = calculate(defaultConfig());
-  const focused = calculate({ ...defaultConfig(), focusCount: 10 });
+  const noFocus = calculate({ ...defaultConfig(), model: 'community' });
+  const focused = calculate({ ...defaultConfig(), model: 'community', focusCount: 10 });
   assert.equal(noFocus.available, true);
   assert.equal(noFocus.focus, null);
   assert.equal(focused.available, false);
@@ -195,7 +261,7 @@ test('optimizer handles negative profits honestly and deterministic ties', () =>
 });
 
 test('costs cover all 200 levels but only measured levels receive financial estimates', () => {
-  for (const r of compareLevels(defaultConfig())) {
+  for (const r of compareLevels({ ...defaultConfig(), model: 'community' })) {
     assert.ok(Number.isFinite(r.elapsedHours));
     near(r.costs, r.net.cost + r.fuelCost);
     if (r.level === 53) {
@@ -218,12 +284,12 @@ test('public count and provenance are preserved without coefficient multiplicati
   assert.equal(sample.focus, null);
   assert.match(sample.source, /fGqEPyQoBgk/);
   assert.match(sample.levelSource, /lc=/);
-  const r = calculate(defaultConfig());
+  const r = calculate({ ...defaultConfig(), model: 'community' });
   near(r.runes, 7.664);
   near(r.profit, 76714.4);
   assert.equal(r.fuelQuantity, 14);
-  near(calculate({ ...defaultConfig(), coefficient: 999 }).runes, r.runes);
-  assert.equal(bestLevel(compareLevels(defaultConfig()), 'profit'), null);
+  near(calculate({ ...defaultConfig(), model: 'community', coefficient: 999 }).runes, r.runes);
+  assert.equal(bestLevel(compareLevels({ ...defaultConfig(), model: 'community' }), 'profit'), null);
 });
 
 test('missing focused or normal measurements only block groups actually used', () => {
