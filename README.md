@@ -28,24 +28,28 @@ Ouvrir ensuite `standalone/volkorne.html`. Tout est intégré dans ce fichier. L
 - Répartition du lot entre focus PA et sans focus, prix de la Ga Pa et valeur des autres runes ou ressources.
 - Bénéfice net, taxe fixe de 2 %, ROI du cycle, prix de Ga Pa à l’équilibre, trésorerie initiale et amortissement de l’investissement fixe.
 - Temps actif, attente en enclos et rendement en kamas par heure totale ou active.
-- Comparaison de tous les niveaux, avec trois objectifs : bénéfice, rendement horaire total, ROI du cycle. Export CSV compatible avec les décimales françaises.
+- Coûts pour tous les niveaux, classement limité aux niveaux mesurés avec trois objectifs : bénéfice, rendement horaire total, ROI du cycle. Export CSV compatible avec les décimales françaises.
 - Configuration et relevés exportables/importables en JSON, interface responsive et utilisation hors ligne après génération du fichier autonome.
 
-## Fiabilité des données et hypothèses
+## Rendement mesuré et limites
 
-**Le rendement du brisage des Volkornes par niveau n’est pas confirmé par une source officielle.** Le mode initial est une projection explicitement signalée, pas une table de taux observés. Il applique la formule communautaire de brisage d’équipement à une ligne hypothétique de 1 PA :
+La projection d’équipement et l’interpolation ont été retirées. La recherche du 27 octobre 2026 a permis de qualifier **un seul niveau**, sans établir de table exhaustive ni de formule officielle.
 
-```text
-Ga Pa par monture = ((100 × niveau × 0,015 + 1) / 100) × coefficient / 100
-```
+| Niveau | Mode | Montures | Ga Pa obtenues | Moyenne par monture | Publication |
+| --- | --- | ---: | ---: | ---: | --- |
+| 53 | Sans focus | 10 000 | 3 832 | 0,3832 | 4 août 2026 |
 
-Au coefficient supposé de 50 %, cette projection donne 0,4175 Ga Pa au niveau 55 et 0,755 au niveau 100. Le PA équipé n’apparaît qu’au niveau 100 ; cela ne valide pas la projection pour les montures. Les recommandations restent conditionnelles à cette hypothèse.
+Source primaire : [bilan de Solomonk-e vers 30:22](https://www.youtube.com/watch?v=fGqEPyQoBgk&t=1822s). Le [créateur confirme en réponse que toutes les montures étaient au niveau 53](https://www.youtube.com/watch?v=fGqEPyQoBgk&lc=UgxQG9dbDLVEbMLsW2Z4AaABAg.A_5xazn3BBRA_5zmc6NnPu). Les libellés quantité/prix sont inversés dans sa ligne Ga Pa du tableur : 3 832 est le nombre de runes, 34 000 leur prix, conformément à la narration. Le relevé de 0,3832 représente une moyenne sur ce lot, pas une probabilité officielle ou un rendement garanti pour la 3.7.
 
-Des retours de joueurs indiquent que le focus ne change pas le résultat sur les Volkornes. Le mode projection ne lui attribue donc aucun bonus et conserve les autres runes sur le lot complet. Le mode **Mes relevés** permet de saisir des rendements distincts avec et sans focus. Il utilise les valeurs exactes aux niveaux saisis, interpole entre deux relevés, et ne produit aucune estimation en dehors de leur plage. Les rendements saisis sont des runes moyennes par monture, sans nouvelle multiplication par le coefficient.
+Aucune mesure qualifiée n’a été retenue aux niveaux 54, 55 ou 100, ni en focus PA. Les valeurs approximatives de guides et les formules théoriques d’autres outils ne sont pas assimilées à des observations. Le détail de l’audit figure dans [docs/brisage-volkornes.md](docs/brisage-volkornes.md).
 
-Les prix et rendements des deux filets reprennent vos repères ; les milieux des fourchettes servent de moyennes par défaut. Les prix des carburants restent des **exemples** à ajuster au serveur. Les résultats sont des espérances, sans garantie sur un petit lot. Les résultats bruts des sous-groupes sont arrondis pour l’affichage seulement.
+Le nouveau scénario initial contient 20 montures au niveau 53, sans focus. Les scénarios sauvegardés conservent leur niveau et leur répartition ; s’ils utilisent un niveau ou un mode non mesuré, seules leurs dépenses sont calculées. Un bouton permet de simuler explicitement le niveau 53 sans focus.
 
-Les sauvegardes et exports JSON de version 1 restent lisibles. La migration remplace les anciens prix et rendements d’exemple des deux filets, conserve les valeurs personnalisées et les relevés, retire les deux autres filets d’exemple et ignore les anciens réglages Sage et taxe. Les nouveaux exports portent la version 2.
+Les relevés personnels couvrent uniquement leur niveau exact. Laisser vide un mode non testé ; zéro désigne un résultat nul effectivement observé. Le classement exige au moins deux niveaux mesurés dans tous les modes utilisés et reste limité à ces niveaux. Aucun optimum global n’est affirmé et les points du graphique ne sont pas reliés. Les tailles d’échantillon et les conditions de jeu peuvent différer.
+
+Les prix et rendements des filets reprennent vos repères ; les prix des carburants restent des exemples. Le bilan applique la taxe fixe de 2 %, sans tenir compte des capacités Sage.
+
+Les sauvegardes et exports JSON v1/v2 restent lisibles : prix personnalisés et relevés sont conservés ; les anciens modes théoriques passent au relevé public sans inventer de données au niveau sauvegardé. Le coefficient de brisage est retiré : les nombres de runes mesurés n’ont pas à être multipliés une seconde fois. Les nouveaux exports portent la version 3.
 
 ### Carburant et temps
 
@@ -63,7 +67,7 @@ Consultées le **27 octobre 2026** :
 
 - [Guide de l’éleveur, Dofus pour les Noobs](https://www.dofuspourlesnoobs.com/guide-de-l-eleveur.html) : filets, jauges, capacité des enclos, carburants et refonte 3.7.
 - [Tableaux d’expérience, Dofus pour les Noobs](https://www.dofuspourlesnoobs.com/tableaux-dexpeacuterience.html) : table monture, notamment 42 906 XP au niveau 55, 172 668 au niveau 100, 867 582 au niveau 200. Seules les valeurs numériques de la table sont intégrées.
-- [Calculateur de brisage, Dofus Portals](https://dofus-portals.fr/outils/calculateur-brisage/) : formule communautaire des équipements utilisée comme projection.
+- [Bilan de brisage de Solomonk-e](https://www.youtube.com/watch?v=fGqEPyQoBgk&t=1822s) : relevé public intégré ; voir les preuves et limites ci-dessus.
 - [Retour d’expérience sur le focus, septembre 2026](https://www.reddit.com/r/DOFUS_FRANCE/comments/1wcf826/brisage_de_volkorne/) : témoignages sur le coefficient de 50 % et le focus sans effet, sans confirmation officielle.
 
 Le contenu du site officiel Ankama n’a pas été accessible lors de cette vérification. Les limites sont également affichées dans l’interface.
@@ -76,6 +80,6 @@ npm test
 npm run build
 ```
 
-Les tests couvrent les seuils d’XP, les groupes incomplets, l’absence de bonus Sage, la taxe fixe, la migration des anciennes sauvegardes, les vagues d’enclos, les arrondis des filets et du carburant, la réserve, les taxes, le seuil de rentabilité, l’amortissement, les relevés, l’interpolation, les entrées invalides, les cas sans coût/temps/rendement, l’export CSV et le serveur HTTP local. Le test HTTP nécessite l’accès à la boucle locale du système.
+Les tests couvrent les seuils d’XP, les groupes incomplets, l’absence de bonus Sage, la taxe fixe, la migration des anciennes sauvegardes, les vagues d’enclos, les arrondis des filets et du carburant, la réserve, les taxes, le seuil de rentabilité, l’amortissement, les relevés publics sourcés, l’absence d’interpolation, les modes manquants, les entrées invalides, les cas sans coût/temps/rendement, l’export CSV et le serveur HTTP local. Le test HTTP nécessite l’accès à la boucle locale du système.
 
 Le fichier autonome est généré depuis les mêmes sources que l’aperçu. Le build vérifie également la syntaxe du module JavaScript assemblé. La CI lance ces trois commandes ; aucun déploiement automatique n’est configuré.

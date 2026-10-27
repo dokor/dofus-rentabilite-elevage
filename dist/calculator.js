@@ -1,11 +1,12 @@
 import { MOUNT_XP } from './xp-data.js';
+import { PUBLIC_CRUSHING_OBSERVATIONS } from './crushing-data.js';
 
 export const NETS = [
   { id: 'reinforced', name: 'Filet à Volkorne renforcé', price: 17500, yield: 7, level: 149, reference: '15 000–20 000 k · 6–8 montures' },
   { id: 'both', name: 'Filet multiplicateur de Volkorne renforcé', price: 42000, yield: 13.5, level: 200, reference: '42 000 k · 12–15 montures' },
 ];
 export const SALE_TAX = 0.02;
-export const CONFIG_VERSION = 2;
+export const CONFIG_VERSION = 3;
 const sizes = ['Minuscule', 'Petit', '', 'Grand', 'Gigantesque'];
 export const FUELS = ['Extrait', 'Philtre', 'Potion', 'Élixir'].flatMap((family, f) =>
   sizes.map((size, s) => ({ id: `fuel-${f}-${s}`, name: `${family === 'Potion' ? size.replace('Petit', 'Petite').replace('Grand', 'Grande') : size} ${family} d’expérience de monture`.trim(), charge: (s + 1) * 2000, family, ceiling: [80000, 140000, 180000, 200000][f] }))
@@ -13,18 +14,18 @@ export const FUELS = ['Extrait', 'Philtre', 'Potion', 'Élixir'].flatMap((family
 
 export function defaultConfig() {
   return {
-    count: 20, startLevel: 1, level: 55, focusCount: 10, runePrice: 20000,
-    coefficient: 50, nets: NETS.map(n => ({ ...n })), netId: 'reinforced',
+    count: 20, startLevel: 1, level: 53, focusCount: 0, runePrice: 20000,
+    nets: NETS.map(n => ({ ...n })), netId: 'reinforced',
     fuelId: 'fuel-0-2', fuelPrices: Object.fromEntries(FUELS.map(f => [f.id, 1500])),
     charge: 6000, xpHour: 3600, paddocks: 2, reserve: 0,
     captureMinutes: 3, handlingMinutes: 5, otherCosts: 0, fixedInvestment: 0,
-    loot: 0, otherRunes: 0, model: 'theory', observations: [], objective: 'profit',
+    loot: 0, otherRunes: 0, model: 'community', observations: [], objective: 'profit',
     scenarioName: 'Mon scénario',
   };
 }
 
 const integerFields = ['count', 'startLevel', 'level', 'focusCount', 'paddocks'];
-const numberFields = ['count', 'startLevel', 'level', 'focusCount', 'runePrice', 'coefficient', 'charge', 'xpHour', 'paddocks', 'reserve', 'captureMinutes', 'handlingMinutes', 'otherCosts', 'fixedInvestment', 'loot', 'otherRunes'];
+const numberFields = ['count', 'startLevel', 'level', 'focusCount', 'runePrice', 'charge', 'xpHour', 'paddocks', 'reserve', 'captureMinutes', 'handlingMinutes', 'otherCosts', 'fixedInvestment', 'loot', 'otherRunes'];
 
 // Validate both user input and imported/localStorage data before any financial result.
 export function validate(c) {
@@ -38,7 +39,7 @@ export function validate(c) {
   if (c.focusCount > c.count) errors.push('Le nombre en focus dépasse le lot.');
   if (c.paddocks < 1 || c.paddocks > 6) errors.push('Choisissez entre 1 et 6 enclos de 10 places.');
   if (c.charge <= 0 || c.xpHour <= 0) errors.push('Le carburant et la vitesse d’XP doivent être strictement positifs.');
-  if (!['theory', 'observed'].includes(c.model)) errors.push('Modèle de brisage inconnu.');
+  if (!['community', 'observed'].includes(c.model)) errors.push('Source de rendement inconnue.');
   if (!['profit', 'hour', 'roi'].includes(c.objective)) errors.push('Objectif inconnu.');
   if (!Array.isArray(c.nets) || c.nets.length !== NETS.length || NETS.some(n => !c.nets.some(v => v.id === n.id))) errors.push('La liste des filets est invalide.');
   else for (const net of c.nets) {
@@ -51,7 +52,8 @@ export function validate(c) {
   else {
     const levels = new Set();
     for (const row of c.observations) {
-      if (!Number.isInteger(row.level) || row.level < 1 || row.level > 200 || levels.has(row.level) || !Number.isFinite(row.normal) || row.normal < 0 || row.normal > 100 || !Number.isFinite(row.focus) || row.focus < 0 || row.focus > 100) errors.push('Les relevés doivent avoir des niveaux uniques de 1 à 200 et des rendements positifs ou nuls.');
+      const validMean = value => value === null || (Number.isFinite(value) && value >= 0 && value <= 100);
+      if (!Number.isInteger(row.level) || row.level < 1 || row.level > 200 || levels.has(row.level) || !validMean(row.normal) || !validMean(row.focus) || (row.normal === null && row.focus === null)) errors.push('Chaque relevé doit avoir un niveau unique de 1 à 200 et au moins un rendement mesuré. Laissez vide un mode non testé.');
       levels.add(row.level);
     }
   }
@@ -60,7 +62,7 @@ export function validate(c) {
 
 export function hydrate(raw, version = CONFIG_VERSION) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Configuration invalide.');
-  if (![1, CONFIG_VERSION].includes(version)) throw new Error('Version de configuration inconnue.');
+  if (![1, 2, CONFIG_VERSION].includes(version)) throw new Error('Version de configuration inconnue.');
   const defaults = defaultConfig();
   const c = Object.fromEntries(Object.keys(defaults).map(k => [k, raw[k] ?? defaults[k]]));
   // Keep custom prices and observations, but replace obsolete example defaults.
@@ -75,6 +77,7 @@ export function hydrate(raw, version = CONFIG_VERSION) {
     });
     if (!NETS.some(n => n.id === c.netId)) c.netId = defaults.netId;
   }
+  if (version < 3 && c.model === 'theory') c.model = 'community';
   if (typeof c.scenarioName !== 'string' || c.scenarioName.length > 80) throw new Error('Nom de scénario invalide.');
   const errors = validate(c);
   if (errors.length) throw new Error(errors.join(' '));
@@ -82,20 +85,13 @@ export function hydrate(raw, version = CONFIG_VERSION) {
 }
 
 export function runeYield(level, c) {
-  if (c.model === 'theory') {
-    // Standard equipment formula applied to a hypothetical 1 PA line. This is
-    // explicitly a projection, not a verified mount-specific drop formula.
-    const mean = ((100 * level * 0.015 + 1) / 100) * c.coefficient / 100;
-    return { normal: mean, focus: mean, kind: 'projection' };
+  if (c.model === 'community') {
+    const row = PUBLIC_CRUSHING_OBSERVATIONS.find(r => r.level === level);
+    return row ? { normal: row.normal, focus: row.focus, kind: 'relevé public', sampleSize: row.mounts, source: row.source } : null;
   }
-  const rows = [...c.observations].sort((a, b) => a.level - b.level);
-  const exact = rows.find(r => r.level === level);
-  if (exact) return { normal: exact.normal, focus: exact.focus, kind: 'relevé' };
-  const left = rows.filter(r => r.level < level).at(-1);
-  const right = rows.find(r => r.level > level);
-  if (!left || !right) return null; // Never extrapolate observations silently.
-  const t = (level - left.level) / (right.level - left.level);
-  return { normal: left.normal + t * (right.normal - left.normal), focus: left.focus + t * (right.focus - left.focus), kind: 'interpolation' };
+  const exact = c.observations.find(r => r.level === level);
+  // Unknown levels stay unknown, even between two measured points.
+  return exact ? { normal: exact.normal, focus: exact.focus, kind: 'relevé personnel' } : null;
 }
 
 export function compareNets(c) {
@@ -122,17 +118,16 @@ export function calculate(c, level = c.level) {
   const enclosureHours = consumed / c.xpHour * waves;
   const elapsedHours = activeHours + enclosureHours;
   const common = { level, xp, batches, waves, consumed, fuelPerBatch, fuelQuantity, fuelCost, costs, net, activeHours, enclosureHours, elapsedHours, cashNeeded: costs + c.fixedInvestment };
-  if (!yieldData) return { ...common, available: false };
   const noFocusCount = c.count - c.focusCount;
-  const normalRunes = noFocusCount * yieldData.normal;
-  const focusRunes = c.focusCount * yieldData.focus;
+  if (!yieldData) return { ...common, available: false, missing: 'level' };
+  if ((noFocusCount > 0 && yieldData.normal === null) || (c.focusCount > 0 && yieldData.focus === null)) return { ...common, available: false, missing: 'mode' };
+  const normalRunes = noFocusCount > 0 ? noFocusCount * yieldData.normal : 0;
+  const focusRunes = c.focusCount > 0 ? c.focusCount * yieldData.focus : 0;
   const runes = normalRunes + focusRunes;
   const runeRevenue = runes * c.runePrice;
-  // When focus has no effect, secondary runes remain for the whole lot.
-  // With measured focus yields, conservatively count secondary runes only on
-  // the non-focused subgroup (user may include the rest in additional sales).
-  const secondaryCount = c.model === 'theory' ? c.count : noFocusCount;
-  const otherRevenue = c.otherRunes * secondaryCount + c.loot;
+  // Other runes are valued only on the non-focused group. The focused group's
+  // extra sales can be supplied explicitly in the additional-revenue field.
+  const otherRevenue = c.otherRunes * noFocusCount + c.loot;
   const gross = runeRevenue + otherRevenue;
   const revenue = gross * (1 - SALE_TAX);
   const profit = revenue - costs;
@@ -146,7 +141,10 @@ export function compareLevels(c) {
 
 export function bestLevel(rows, objective) {
   const key = { profit: 'profit', hour: 'perHour', roi: 'roi' }[objective];
-  return rows.filter(r => r.available && Number.isFinite(r[key])).reduce((best, r) => !best || r[key] > best[key] + 1e-9 ? r : best, null);
+  const measured = rows.filter(r => r.available && ['relevé public', 'relevé personnel'].includes(r.kind) && Number.isFinite(r[key]));
+  // One observed level cannot establish a comparison or an optimal level.
+  if (measured.length < 2) return null;
+  return measured.reduce((best, r) => !best || r[key] > best[key] + 1e-9 ? r : best, null);
 }
 
 export function csv(rows) {

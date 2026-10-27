@@ -2,8 +2,8 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 const file = (name) => readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8');
-const [html, css, xp, calculator, app, icon] = await Promise.all(['index.html', 'styles.css', 'xp-data.js', 'calculator.js', 'app.js', 'icon.svg'].map(file));
-const script = [xp, calculator.replace(/^import .*;\r?\n/m, ''), app.replace(/^import .*;\r?\n/m, '')].join('\n');
+const [html, css, xp, crushing, calculator, app, icon] = await Promise.all(['index.html', 'styles.css', 'xp-data.js', 'crushing-data.js', 'calculator.js', 'app.js', 'icon.svg'].map(file));
+const script = [xp, crushing, calculator.replace(/^import .*;\r?\n/gm, ''), app.replace(/^import .*;\r?\n/gm, '')].join('\n');
 const check = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: script, encoding: 'utf8' });
 if (check.status !== 0) throw new Error(check.stderr || 'Invalid standalone script');
 const standalone = html

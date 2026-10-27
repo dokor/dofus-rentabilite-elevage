@@ -1,4 +1,5 @@
 import { NETS, FUELS, SALE_TAX, CONFIG_VERSION, defaultConfig, hydrate, validate, compareNets, calculate, compareLevels, bestLevel, csv } from './calculator.js';
+import { PUBLIC_CRUSHING_OBSERVATIONS } from './crushing-data.js';
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -78,11 +79,10 @@ function fillInputs() {
     return `<div class="net-row ${net.id === config.netId ? 'selected' : ''}" data-net-row="${escape(net.id)}"><label class="net-name"><input type="radio" name="net" value="${escape(net.id)}" ${net.id === config.netId ? 'checked' : ''}><span>${net.id === 'reinforced' ? 'Renforcé' : 'Multiplicateur renforcé'}</span></label><label class="net-value"><span class="sr-only">Prix du ${escape(reference.name)}</span><input type="number" min="0" step="10" data-net="${escape(net.id)}" data-property="price" value="${net.price}"></label><label class="net-value"><span class="sr-only">Captures moyennes par ${escape(reference.name)}</span><input type="number" min="0.01" max="100" step="0.1" data-net="${escape(net.id)}" data-property="yield" value="${net.yield}"></label><small class="net-reference">Niv. ${reference.level} · ${escape(reference.reference)}</small></div>`;
   }).join('');
   renderObservations();
-  $('#theory-settings').hidden = config.model !== 'theory';
 }
 
 function renderObservations() {
-  $('#observation-rows').innerHTML = config.observations.length ? config.observations.map((r, i) => `<div class="observation-row"><input type="number" min="1" max="200" step="1" aria-label="Niveau du relevé ${i + 1}" data-observation="${i}" data-property="level" value="${r.level}"><input type="number" min="0" step="0.001" aria-label="Ga Pa par monture sans focus, relevé ${i + 1}" data-observation="${i}" data-property="normal" value="${r.normal}"><input type="number" min="0" step="0.001" aria-label="Ga Pa par monture avec focus, relevé ${i + 1}" data-observation="${i}" data-property="focus" value="${r.focus}"><button type="button" class="icon-button remove-observation" data-remove="${i}" aria-label="Supprimer le relevé ${i + 1}">×</button></div>`).join('') : '<p class="empty-note">Aucun relevé. Ajoutez vos premiers résultats pour quitter la projection.</p>';
+  $('#observation-rows').innerHTML = config.observations.length ? config.observations.map((r, i) => `<div class="observation-row"><input type="number" min="1" max="200" step="1" aria-label="Niveau du relevé ${i + 1}" data-observation="${i}" data-property="level" value="${r.level}"><input type="number" min="0" step="0.001" aria-label="Ga Pa par monture sans focus, relevé ${i + 1}" data-observation="${i}" data-property="normal" value="${r.normal ?? ''}"><input type="number" min="0" step="0.001" aria-label="Ga Pa par monture avec focus, relevé ${i + 1}" data-observation="${i}" data-property="focus" value="${r.focus ?? ''}"><button type="button" class="icon-button remove-observation" data-remove="${i}" aria-label="Supprimer le relevé ${i + 1}">×</button></div>`).join('') : '<p class="empty-note">Aucun relevé. Ajoutez vos premiers résultats mesurés.</p>';
 }
 
 function render() {
@@ -93,12 +93,11 @@ function render() {
   $('#method-validation').textContent = errors.join(' ');
   $('.example-chip').textContent = edited ? 'Prix saisis manuellement' : 'Filets préremplis';
   const banner = $('.assumption-banner p');
-  banner.innerHTML = config.model === 'theory'
-    ? '<strong>Une estimation, à confronter au jeu.</strong> Le rendement par niveau reste une projection. Le focus est supposé sans effet sur les Volkornes. <button type="button" class="inline-button" data-tab="method">Voir les hypothèses ↗</button>'
-    : '<strong>Simulation à partir de vos relevés.</strong> Les niveaux intermédiaires sont interpolés. Les niveaux hors de vos relevés ne sont pas estimés. <button type="button" class="inline-button" data-tab="method">Gérer mes relevés ↗</button>';
+  banner.innerHTML = config.model === 'community'
+    ? '<strong>Un seul niveau documenté : le niveau 53, sans focus.</strong> La projection est retirée. Ce relevé d’août 2026 ne suffit pas à établir un niveau optimal ni un taux actuel universel. <button type="button" class="inline-button" data-tab="method">Voir le relevé et ses limites ↗</button>'
+    : '<strong>Simulation à partir de vos relevés.</strong> Seuls les niveaux et modes réellement renseignés sont calculés. Au moins deux niveaux comparables sont nécessaires au classement. <button type="button" class="inline-button" data-tab="method">Gérer mes relevés ↗</button>';
   $('#focusCount').max = config.count;
   $('#normal-count').textContent = `${num(config.count - config.focusCount)} sans focus`;
-  $('#theory-settings').hidden = config.model !== 'theory';
   if (errors.length) {
     $('#results').innerHTML = '<div class="card unavailable"><h2>Vérifiez les paramètres.</h2><p>Le calcul reprendra une fois les valeurs corrigées.</p></div>';
     $('#chart').innerHTML = '';
@@ -125,23 +124,23 @@ function render() {
 
 function renderResults(r) {
   if (!r.available) {
-    $('#results').innerHTML = `<section class="card unavailable"><span class="section-kicker">NIVEAU ${r.level}</span><h2>Ce niveau n’est pas couvert.</h2><p>Ajoutez un relevé au niveau ${r.level}, ou deux relevés qui l’encadrent. Le budget du cycle est déjà estimé à <strong>${money(r.costs)}</strong>.</p><button type="button" class="button button-dark" data-tab="method">Ajouter mes relevés ↗</button></section>`;
+    $('#results').innerHTML = `<section class="card unavailable"><span class="section-kicker">NIVEAU ${r.level}</span><h2>${r.missing === 'mode' ? 'Ce mode de brisage n’est pas mesuré.' : 'Ce niveau n’est pas documenté.'}</h2><p>Aucun rendement n’est inventé ou interpolé. Ajoutez un relevé au niveau ${r.level} pour chaque mode utilisé. Le budget reste estimé à <strong>${money(r.costs)}</strong>.</p><button type="button" class="button button-dark" data-documented-scenario>Simuler le niveau 53 sans focus ↗</button><button type="button" class="text-button" data-tab="method">Ajouter mes relevés</button></section>`;
     return;
   }
   const profitClass = r.profit >= 0 ? 'positive' : 'negative';
   const payback = config.fixedInvestment === 0 ? 'Aucun investissement fixe' : r.payback === null ? 'Non amorti avec ce scénario' : `${num(r.payback)} cycle${r.payback > 1 ? 's' : ''} · ${duration(r.payback * r.elapsedHours)} minimum`;
   $('#results').innerHTML = `
     <section class="profit-card ${r.profit < 0 ? 'loss-card' : ''}">
-      <div class="profit-header"><span>VOTRE BILAN PRÉVISIONNEL</span><span class="status-pill">${config.model === 'theory' ? 'Projection à calibrer' : escape(r.kind)}</span></div>
+      <div class="profit-header"><span>VOTRE BILAN PRÉVISIONNEL</span><span class="status-pill">${escape(r.kind)}</span></div>
       <div class="profit-title">${r.profit >= 0 ? 'Bénéfice net attendu' : 'Perte nette attendue'}</div><div class="profit-amount" id="profit-amount">${r.profit > 0 ? '+' : ''}${num(r.profit)} <span>kamas</span></div>
       <p class="profit-description">${num(config.count)} Volkornes · niveau ${r.level} · ${num(config.focusCount)} focus PA / ${num(r.noFocusCount)} sans focus</p>
       <div class="profit-metrics"><div><span>ROI DU CYCLE</span><strong>${r.roi === null ? '—' : `${r.roi > 0 ? '+' : ''}${num(r.roi)} %`}</strong></div><div><span>GA PA ATTENDUES</span><strong>${decimal.format(r.runes)} <small>runes</small></strong></div><div><span>SEUIL GA PA</span><strong>${money(r.breakEven)}</strong></div></div>
-      <div class="profit-footer"><span class="small-star">✦</span> ${r.profit >= 0 ? 'Résultat positif avec vos paramètres.' : 'Les recettes estimées ne couvrent pas les frais.'} ${config.model === 'theory' ? 'À confirmer par vos relevés.' : 'Moyenne estimée, sans garantie sur ce lot.'}</div>
+      <div class="profit-footer"><span class="small-star">✦</span> ${r.profit >= 0 ? 'Résultat positif avec vos paramètres.' : 'Les recettes estimées ne couvrent pas les frais.'} ${config.model === 'community' ? 'Relevé d’août 2026, à revalider en 3.7.' : 'Moyenne mesurée, sans garantie sur ce lot.'}</div>
     </section>
     <div class="mini-metrics"><div class="mini-card"><span>TEMPS ACTIF</span><strong>${duration(r.activeHours)}</strong><small>capture + manipulation</small></div><div class="mini-card"><span>ATTENTE EN ENCLOS</span><strong>${duration(r.enclosureHours)}</strong><small>${r.waves} vague${r.waves > 1 ? 's' : ''} · ${r.batches} groupe${r.batches > 1 ? 's' : ''} de 10 maximum</small></div><div class="mini-card"><span>KAMAS / H TOTALE</span><strong class="${profitClass}">${money(r.perHour)}</strong><small>${money(r.perActiveHour)} / h active</small></div></div>
     <section class="card breakdown-card"><div class="card-heading"><div><span class="section-kicker">DU BUDGET AUX RECETTES</span><h2>Le détail de votre cycle.</h2></div><span class="outlined-badge">${num(r.xp)} XP / monture</span></div>
       <dl class="cost-lines"><div><dt>Filets de capture <small>${num(r.net.quantity)} × ${money(r.net.price)}</small></dt><dd>− ${money(r.net.cost)}</dd></div><div><dt>Carburants d’XP <small>${num(r.fuelQuantity)} unités · ${r.fuelPerBatch} / groupe</small></dt><dd>− ${money(r.fuelCost)}</dd></div><div><dt>Autres frais</dt><dd>− ${money(config.otherCosts)}</dd></div><div class="subtotal"><dt>Coût du cycle</dt><dd>${money(r.costs)}</dd></div><div><dt>Vente des Ga Pa <small>${decimal.format(r.runes)} × ${money(config.runePrice)}</small></dt><dd>+ ${money(r.runeRevenue)}</dd></div><div><dt>Autres runes et ressources</dt><dd>+ ${money(r.otherRevenue)}</dd></div><div><dt>Taxe sur les ventes <small>${num(SALE_TAX * 100)} %</small></dt><dd>− ${money(r.gross - r.revenue)}</dd></div><div class="total"><dt>Bénéfice net du cycle</dt><dd class="${profitClass}">${signed(r.profit)}</dd></div></dl>
-      <div class="focus-split"><div><span>FOCUS PA · ${num(config.focusCount)} MONTURES</span><strong>${decimal.format(r.focusRunes)} Ga Pa <small>en moyenne</small></strong><small>${precise.format(r.focus)} / monture</small></div><div><span>SANS FOCUS · ${num(r.noFocusCount)} MONTURES</span><strong>${decimal.format(r.normalRunes)} Ga Pa <small>en moyenne</small></strong><small>${precise.format(r.normal)} / monture</small></div></div>
+      <div class="focus-split"><div><span>FOCUS PA · ${num(config.focusCount)} MONTURES</span><strong>${decimal.format(r.focusRunes)} Ga Pa <small>en moyenne</small></strong><small>${r.focus === null ? 'Non mesuré' : precise.format(r.focus) + ' / monture'}</small></div><div><span>SANS FOCUS · ${num(r.noFocusCount)} MONTURES</span><strong>${decimal.format(r.normalRunes)} Ga Pa <small>en moyenne</small></strong><small>${r.normal === null ? 'Non mesuré' : precise.format(r.normal) + ' / monture'}</small></div></div>
       <details class="advanced"><summary>Trésorerie & retour sur investissement</summary><dl class="cost-lines"><div><dt>Investissement fixe</dt><dd>${money(config.fixedInvestment)}</dd></div><div><dt>Budget initial à mobiliser</dt><dd>${money(r.cashNeeded)}</dd></div><div><dt>Solde après le premier cycle</dt><dd class="${r.firstCycleProfit >= 0 ? 'positive' : 'negative'}">${signed(r.firstCycleProfit)}</dd></div><div><dt>Amortissement du fixe</dt><dd>${payback}</dd></div></dl><p class="field-help">Amortissement par cycles identiques, après vente de tout le stock. Le délai de vente et les variations de prix ne sont pas inclus.</p></details>
     </section>`;
 }
@@ -154,37 +153,33 @@ function compact(value) {
 
 function renderChart(rows, selected) {
   const available = rows.filter(r => r.available);
-  if (!available.length) { $('#chart').innerHTML = '<p class="empty-note">Ajoutez des relevés pour tracer la courbe.</p>'; return; }
+  if (!available.length) { $('#chart').innerHTML = '<p class="empty-note">Ajoutez des relevés pour afficher les points mesurés.</p>'; return; }
   const width = 660, height = 245, left = 62, right = 22, top = 20, bottom = 34;
   const min = Math.min(0, ...available.map(r => r.profit));
   const max = Math.max(1, ...available.map(r => r.profit));
   const range = Math.max(1, max - min);
   const x = (level) => left + (level - config.startLevel) / Math.max(1, 200 - config.startLevel) * (width - left - right);
   const y = (profit) => top + (max - profit) / range * (height - top - bottom);
-  let paths = [], path = [];
-  for (const row of rows) {
-    if (!row.available) { if (path.length) paths.push(path); path = []; continue; }
-    path.push(`${x(row.level).toFixed(2)},${y(row.profit).toFixed(2)}`);
-  }
-  if (path.length) paths.push(path);
   const ticks = Array.from({ length: 4 }, (_, i) => min + range * i / 3);
-  $('#chart').innerHTML = `<svg viewBox="0 0 ${width} ${height}" class="profit-chart" role="img" aria-label="Bénéfice net estimé selon le niveau, du niveau ${config.startLevel} à 200. Les données complètes figurent dans Comparer les niveaux."><defs><linearGradient id="chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#6c956d" stop-opacity="0.17"/><stop offset="100%" stop-color="#6c956d" stop-opacity="0"/></linearGradient></defs>${ticks.map(t => `<line x1="${left}" x2="${width - right}" y1="${y(t)}" y2="${y(t)}" stroke="#e5e7df" stroke-dasharray="3 5"/><text x="${left - 12}" y="${y(t) + 4}" text-anchor="end">${compact(t)}</text>`).join('')}${[...new Set([config.startLevel, 50, 100, 150, 200])].filter(l => l >= config.startLevel).map(l => `<text x="${x(l)}" y="${height - 10}" text-anchor="middle">${l}</text>`).join('')}${paths.map(points => `<polygon points="${points[0].split(',')[0]},${y(0)} ${points.join(' ')} ${points.at(-1).split(',')[0]},${y(0)}" fill="url(#chart-fill)"/><polyline points="${points.join(' ')}" fill="none" stroke="#466d4f" stroke-width="2.5" stroke-linejoin="round"/>`).join('')}${available.length === 1 ? `<circle cx="${x(available[0].level)}" cy="${y(available[0].profit)}" r="5" fill="#466d4f"/>` : ''}${selected.available ? `<line x1="${x(selected.level)}" x2="${x(selected.level)}" y1="${top}" y2="${height - bottom}" stroke="#a1ac8d" stroke-dasharray="4 4"/><circle cx="${x(selected.level)}" cy="${y(selected.profit)}" r="6" fill="#d2e6a3" stroke="#182f29" stroke-width="2"/>` : ''}<text x="${left}" y="12">KAMAS</text><text x="${width - right}" y="${height - 10}" text-anchor="end" dy="-16">NIV.</text></svg>`;
+  $('#chart').innerHTML = `<svg viewBox="0 0 ${width} ${height}" class="profit-chart" role="img" aria-label="Bénéfices calculés uniquement aux niveaux mesurés. Les points ne sont pas reliés.">${ticks.map(t => `<line x1="${left}" x2="${width - right}" y1="${y(t)}" y2="${y(t)}" stroke="#e5e7df" stroke-dasharray="3 5"/><text x="${left - 12}" y="${y(t) + 4}" text-anchor="end">${compact(t)}</text>`).join('')}${[...new Set([config.startLevel, 50, 100, 150, 200])].filter(l => l >= config.startLevel).map(l => `<text x="${x(l)}" y="${height - 10}" text-anchor="middle">${l}</text>`).join('')}${available.map(row => `<circle cx="${x(row.level)}" cy="${y(row.profit)}" r="${row.level === selected.level ? 6 : 4}" fill="${row.level === selected.level ? '#d2e6a3' : '#466d4f'}" stroke="#182f29" stroke-width="1.5"><title>Niveau ${row.level} : ${money(row.profit)}</title></circle>`).join('')}<text x="${left}" y="12">KAMAS</text></svg>`;
+
 }
 
 function renderRecommendation(best, current) {
+  const measuredCount = currentRows.filter(r => r.available).length;
   if (!best) {
-    $('#recommendation').innerHTML = '<h2>Quelques relevés pour aller plus loin.</h2><p>Ajoutez au moins un niveau mesuré dans Méthode & sources.</p><button type="button" class="text-button" data-tab="method">Renseigner mes relevés ↗</button>';
+    $('#recommendation').innerHTML = `<h2>Le niveau optimal reste indéterminé.</h2><p>${measuredCount === 1 ? 'Un seul niveau est couvert pour vos paramètres.' : 'Aucun couple de niveaux n’est comparable pour vos paramètres.'} Il faut au moins deux niveaux mesurés dans les modes utilisés pour effectuer un classement.${config.model === 'community' ? ' La référence publique porte sur le niveau 53 sans focus ; les niveaux 54, 55 et 100 restent inconnus.' : ' Complétez vos relevés dans les modes utilisés pour comparer leurs résultats.'}</p><button type="button" class="text-button" data-tab="method">Voir le relevé et compléter mes données ↗</button>`;
     return;
   }
   const objective = { profit: 'le bénéfice net par cycle', hour: 'les kamas par heure totale', roi: 'le retour sur frais du cycle' }[config.objective];
-  $('#recommendation').innerHTML = `<div class="recommendation-title"><h2>Niveau ${best.level}<span>${best.profit >= 0 ? 'Le meilleur selon votre objectif.' : 'La perte la plus faible selon votre objectif.'}</span></h2><span class="level-medallion">${best.level}</span></div><p>En optimisant ${objective} : <strong>${signed(best.profit)}</strong> par cycle, ${duration(best.elapsedHours)} au total.${current.available && current.level !== best.level ? ` Écart de bénéfice avec le niveau ${current.level} : <strong>${signed(best.profit - current.profit)}</strong>.` : ''}</p><div class="recommendation-actions"><button type="button" class="button button-dark" data-use-level="${best.level}">Simuler ce niveau ↗</button><button type="button" class="text-button" data-tab="comparison">Changer l’objectif</button></div><p class="field-help">${config.model === 'theory' ? 'Suggestion fondée sur la projection non confirmée du brisage.' : 'Suggestion limitée aux niveaux couverts par vos relevés.'}</p>`;
+  $('#recommendation').innerHTML = `<div class="recommendation-title"><h2>Niveau ${best.level}<span>${best.profit >= 0 ? 'Le meilleur parmi les niveaux renseignés.' : 'La perte la plus faible parmi les niveaux renseignés.'}</span></h2><span class="level-medallion">${best.level}</span></div><p>En comparant ${measuredCount} niveaux pour ${objective} : <strong>${signed(best.profit)}</strong> par cycle, ${duration(best.elapsedHours)} au total.${current.available && current.level !== best.level ? ` Écart avec le niveau ${current.level} : <strong>${signed(best.profit - current.profit)}</strong>.` : ''}</p><div class="recommendation-actions"><button type="button" class="button button-dark" data-use-level="${best.level}">Simuler ce niveau ↗</button><button type="button" class="text-button" data-tab="comparison">Changer l’objectif</button></div><p class="field-help">Classement limité aux niveaux mesurés, sans interpolation. Les tailles d’échantillon et les conditions de jeu peuvent différer ; ce résultat n’établit pas un optimum global.</p>`;
 }
 
 function renderComparison() {
   if (validate(config).length) return;
   const best = bestLevel(currentRows, config.objective);
-  $('#comparison-best').innerHTML = best ? `<span class="outlined-badge">${config.model === 'theory' ? 'Projection' : 'Relevés & interpolations'}</span><strong>Niveau ${best.level}</strong><span>${signed(best.profit)} / cycle</span>` : 'Aucun niveau couvert par les relevés.';
-  $('#level-table').innerHTML = currentRows.map(r => `<tr class="${best?.level === r.level ? 'best-row' : ''} ${r.level === config.level ? 'current-row' : ''}"><td><button type="button" data-use-level="${r.level}" aria-label="Simuler le niveau ${r.level}">${r.level}${best?.level === r.level ? '<span title="Meilleur niveau selon l’objectif">✦</span>' : ''}</button></td><td>${num(r.xp)}</td><td>${num(r.fuelQuantity)}</td><td>${duration(r.elapsedHours)}</td><td>${r.available ? decimal.format(r.runes) : '—'}</td><td>${money(r.costs)}</td><td class="${r.available && r.profit >= 0 ? 'positive' : 'negative'}">${r.available ? signed(r.profit) : 'Non couvert'}</td><td>${r.available && r.roi !== null ? `${num(r.roi)} %` : '—'}</td><td>${r.available ? money(r.perHour) : '—'}</td></tr>`).join('');
+  $('#comparison-best').innerHTML = best ? `<span class="outlined-badge">Parmi les niveaux mesurés</span><strong>Niveau ${best.level}</strong><span>${signed(best.profit)} / cycle</span>` : `${currentRows.filter(r => r.available).length} niveau documenté pour vos paramètres · classement impossible.`;
+  $('#level-table').innerHTML = currentRows.map(r => `<tr class="${best?.level === r.level ? 'best-row' : ''} ${r.level === config.level ? 'current-row' : ''}"><td><button type="button" data-use-level="${r.level}" aria-label="Simuler le niveau ${r.level}">${r.level}${best?.level === r.level ? '<span title="Meilleur niveau selon l’objectif">✦</span>' : ''}</button></td><td>${num(r.xp)}</td><td>${num(r.fuelQuantity)}</td><td>${duration(r.elapsedHours)}</td><td>${r.available ? decimal.format(r.runes) : '—'}</td><td>${money(r.costs)}</td><td class="${!r.available ? '' : r.profit >= 0 ? 'positive' : 'negative'}">${r.available ? signed(r.profit) : r.missing === 'mode' ? 'Mode non mesuré' : 'Niveau non mesuré'}</td><td>${r.available && r.roi !== null ? `${num(r.roi)} %` : '—'}</td><td>${r.available ? money(r.perHour) : '—'}</td></tr>`).join('');
 }
 
 function download(content, filename, type) {
@@ -213,16 +208,22 @@ function changeInput(event) {
   } else if (input.id === 'fuelPrice') config.fuelPrices[config.fuelId] = input.value === '' ? NaN : Number(input.value);
   else if (input.dataset.net) config.nets.find(n => n.id === input.dataset.net)[input.dataset.property] = input.value === '' ? NaN : Number(input.value);
   else if (input.name === 'net') config.netId = input.value;
-  else if (input.dataset.observation !== undefined) config.observations[Number(input.dataset.observation)][input.dataset.property] = input.value === '' ? NaN : Number(input.value);
+  else if (input.dataset.observation !== undefined) config.observations[Number(input.dataset.observation)][input.dataset.property] = input.value === '' ? null : Number(input.value);
   else return;
   render();
 }
 
+$('#public-observations').innerHTML = PUBLIC_CRUSHING_OBSERVATIONS.map(row => `<div class="subtle-callout"><strong>Niveau ${row.level} · sans focus</strong><br>${num(row.gaPa)} Ga Pa / ${num(row.mounts)} montures = <strong>${precise.format(row.normal)} Ga Pa par monture</strong>.<br>${escape(row.author)} · publication du 4 août 2026.<br><a href="${escape(row.source)}" target="_blank" rel="noopener noreferrer">Bilan vidéo ↗</a> · <a href="${escape(row.levelSource)}" target="_blank" rel="noopener noreferrer">Niveau confirmé par l’auteur ↗</a></div>`).join('');
 $('#fuelId').innerHTML = FUELS.map(f => `<option value="${f.id}">${escape(f.name)}</option>`).join('');
 document.addEventListener('input', changeInput);
 document.addEventListener('change', event => { if (event.target.matches('select, input[type="radio"], input[type="checkbox"]')) changeInput(event); });
 $('#calculator-form').addEventListener('submit', event => event.preventDefault());
 document.addEventListener('click', event => {
+  if (event.target.closest('[data-documented-scenario]')) {
+    config.model = 'community'; config.level = 53; config.focusCount = 0;
+    if (config.startLevel > 53) config.startLevel = 1;
+    fillInputs(); render(); setTab('simulation');
+  }
   const tab = event.target.closest('[data-tab]');
   if (tab) { event.preventDefault(); setTab(tab.dataset.tab); }
   const level = event.target.closest('[data-use-level]');
@@ -249,11 +250,11 @@ $('#add-observation').addEventListener('click', () => {
   if (config.observations.length >= 200) { toast('La table couvre déjà 200 niveaux.'); return; }
   const existing = new Set(config.observations.map(r => r.level));
   const nextLevel = existing.has(config.level) ? Array.from({ length: 200 }, (_, i) => i + 1).find(i => !existing.has(i)) : config.level;
-  config.observations.push({ level: nextLevel, normal: 0, focus: 0 });
+  config.observations.push({ level: nextLevel, normal: null, focus: null });
   renderObservations();
   render();
   $$('.observation-row input').at(-3)?.focus();
-  toast('Saisissez les deux rendements, puis choisissez « Mes relevés » pour les utiliser.');
+  toast('Renseignez uniquement les modes testés, puis choisissez « Mes relevés ».');
 });
 $('#export-config').addEventListener('click', () => {
   if (validate(config).length) { toast('Corrigez les paramètres avant l’export.'); return; }
@@ -281,7 +282,7 @@ $('#import-file').addEventListener('change', async event => {
   } catch (error) { toast(`Import refusé : ${error.message}`); }
   event.target.value = '';
 });
-function reset() { config = defaultConfig(); edited = false; fillInputs(); render(); setTab('simulation'); toast('Scénario d’exemple restauré.'); }
+function reset() { config = defaultConfig(); edited = false; fillInputs(); render(); setTab('simulation'); toast('Scénario documenté restauré : niveau 53, sans focus.'); }
 $('#reset').addEventListener('click', () => $('#reset-dialog').showModal());
 $('#load-example').addEventListener('click', () => $('#reset-dialog').showModal());
 $('#cancel-reset').addEventListener('click', () => $('#reset-dialog').close());
