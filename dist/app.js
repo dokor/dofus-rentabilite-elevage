@@ -1,4 +1,4 @@
-import { NETS, FUELS, defaultConfig, hydrate, validate, compareNets, calculate, compareLevels, bestLevel, csv } from './calculator.js';
+import { NETS, FUELS, SALE_TAX, CONFIG_VERSION, defaultConfig, hydrate, validate, compareNets, calculate, compareLevels, bestLevel, csv } from './calculator.js';
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -24,8 +24,7 @@ try {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     const parsed = JSON.parse(saved);
-    if (parsed.version !== 1) throw new Error('Version inconnue.');
-    config = hydrate(parsed.config);
+    config = hydrate(parsed.config, parsed.version);
     edited = true;
   }
 } catch {
@@ -41,7 +40,7 @@ function toast(message) {
 
 function save() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, config }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: CONFIG_VERSION, config }));
     $('#save-status').textContent = 'Enregistré sur cet appareil';
   } catch {
     $('#save-status').textContent = 'Sauvegarde locale indisponible';
@@ -74,7 +73,10 @@ function fillInputs() {
     else input.value = config[input.dataset.key];
   });
   $('#fuelPrice').value = config.fuelPrices[config.fuelId];
-  $('#net-rows').innerHTML = config.nets.map(net => `<div class="net-row ${net.id === config.netId ? 'selected' : ''}" data-net-row="${escape(net.id)}"><label class="net-name"><input type="radio" name="net" value="${escape(net.id)}" ${net.id === config.netId ? 'checked' : ''}><span>${escape(NETS.find(n => n.id === net.id).name.replace('Filet de capture ', '').replace('Filet ', '').replace(' de Volkorne', '').replace(' à Volkorne', ''))}</span></label><label class="net-value"><span class="sr-only">Prix du ${escape(net.name)}</span><input type="number" min="0" step="10" data-net="${escape(net.id)}" data-property="price" value="${net.price}"></label><label class="net-value"><span class="sr-only">Captures moyennes par ${escape(net.name)}</span><input type="number" min="0.01" max="100" step="0.1" data-net="${escape(net.id)}" data-property="yield" value="${net.yield}"></label></div>`).join('');
+  $('#net-rows').innerHTML = config.nets.map(net => {
+    const reference = NETS.find(n => n.id === net.id);
+    return `<div class="net-row ${net.id === config.netId ? 'selected' : ''}" data-net-row="${escape(net.id)}"><label class="net-name"><input type="radio" name="net" value="${escape(net.id)}" ${net.id === config.netId ? 'checked' : ''}><span>${net.id === 'reinforced' ? 'Renforcé' : 'Multiplicateur renforcé'}</span></label><label class="net-value"><span class="sr-only">Prix du ${escape(reference.name)}</span><input type="number" min="0" step="10" data-net="${escape(net.id)}" data-property="price" value="${net.price}"></label><label class="net-value"><span class="sr-only">Captures moyennes par ${escape(reference.name)}</span><input type="number" min="0.01" max="100" step="0.1" data-net="${escape(net.id)}" data-property="yield" value="${net.yield}"></label><small class="net-reference">Niv. ${reference.level} · ${escape(reference.reference)}</small></div>`;
+  }).join('');
   renderObservations();
   $('#theory-settings').hidden = config.model !== 'theory';
 }
@@ -89,7 +91,7 @@ function render() {
   $('#validation').textContent = errors.join(' ');
   $('#method-validation').hidden = errors.length === 0;
   $('#method-validation').textContent = errors.join(' ');
-  $('.example-chip').textContent = edited ? 'Prix saisis manuellement' : 'Prix d’exemple';
+  $('.example-chip').textContent = edited ? 'Prix saisis manuellement' : 'Filets préremplis';
   const banner = $('.assumption-banner p');
   banner.innerHTML = config.model === 'theory'
     ? '<strong>Une estimation, à confronter au jeu.</strong> Le rendement par niveau reste une projection. Le focus est supposé sans effet sur les Volkornes. <button type="button" class="inline-button" data-tab="method">Voir les hypothèses ↗</button>'
@@ -138,7 +140,7 @@ function renderResults(r) {
     </section>
     <div class="mini-metrics"><div class="mini-card"><span>TEMPS ACTIF</span><strong>${duration(r.activeHours)}</strong><small>capture + manipulation</small></div><div class="mini-card"><span>ATTENTE EN ENCLOS</span><strong>${duration(r.enclosureHours)}</strong><small>${r.waves} vague${r.waves > 1 ? 's' : ''} · ${r.batches} groupe${r.batches > 1 ? 's' : ''} de 10 maximum</small></div><div class="mini-card"><span>KAMAS / H TOTALE</span><strong class="${profitClass}">${money(r.perHour)}</strong><small>${money(r.perActiveHour)} / h active</small></div></div>
     <section class="card breakdown-card"><div class="card-heading"><div><span class="section-kicker">DU BUDGET AUX RECETTES</span><h2>Le détail de votre cycle.</h2></div><span class="outlined-badge">${num(r.xp)} XP / monture</span></div>
-      <dl class="cost-lines"><div><dt>Filets de capture <small>${num(r.net.quantity)} × ${money(r.net.price)}</small></dt><dd>− ${money(r.net.cost)}</dd></div><div><dt>Carburants d’XP <small>${num(r.fuelQuantity)} unités · ${r.fuelPerBatch} / groupe</small></dt><dd>− ${money(r.fuelCost)}</dd></div><div><dt>Autres frais</dt><dd>− ${money(config.otherCosts)}</dd></div><div class="subtotal"><dt>Coût du cycle</dt><dd>${money(r.costs)}</dd></div><div><dt>Vente des Ga Pa <small>${decimal.format(r.runes)} × ${money(config.runePrice)}</small></dt><dd>+ ${money(r.runeRevenue)}</dd></div><div><dt>Autres runes et ressources</dt><dd>+ ${money(r.otherRevenue)}</dd></div><div><dt>Taxe sur les ventes <small>${decimal.format(config.tax)} %</small></dt><dd>− ${money(r.gross - r.revenue)}</dd></div><div class="total"><dt>Bénéfice net du cycle</dt><dd class="${profitClass}">${signed(r.profit)}</dd></div></dl>
+      <dl class="cost-lines"><div><dt>Filets de capture <small>${num(r.net.quantity)} × ${money(r.net.price)}</small></dt><dd>− ${money(r.net.cost)}</dd></div><div><dt>Carburants d’XP <small>${num(r.fuelQuantity)} unités · ${r.fuelPerBatch} / groupe</small></dt><dd>− ${money(r.fuelCost)}</dd></div><div><dt>Autres frais</dt><dd>− ${money(config.otherCosts)}</dd></div><div class="subtotal"><dt>Coût du cycle</dt><dd>${money(r.costs)}</dd></div><div><dt>Vente des Ga Pa <small>${decimal.format(r.runes)} × ${money(config.runePrice)}</small></dt><dd>+ ${money(r.runeRevenue)}</dd></div><div><dt>Autres runes et ressources</dt><dd>+ ${money(r.otherRevenue)}</dd></div><div><dt>Taxe sur les ventes <small>${num(SALE_TAX * 100)} %</small></dt><dd>− ${money(r.gross - r.revenue)}</dd></div><div class="total"><dt>Bénéfice net du cycle</dt><dd class="${profitClass}">${signed(r.profit)}</dd></div></dl>
       <div class="focus-split"><div><span>FOCUS PA · ${num(config.focusCount)} MONTURES</span><strong>${decimal.format(r.focusRunes)} Ga Pa <small>en moyenne</small></strong><small>${precise.format(r.focus)} / monture</small></div><div><span>SANS FOCUS · ${num(r.noFocusCount)} MONTURES</span><strong>${decimal.format(r.normalRunes)} Ga Pa <small>en moyenne</small></strong><small>${precise.format(r.normal)} / monture</small></div></div>
       <details class="advanced"><summary>Trésorerie & retour sur investissement</summary><dl class="cost-lines"><div><dt>Investissement fixe</dt><dd>${money(config.fixedInvestment)}</dd></div><div><dt>Budget initial à mobiliser</dt><dd>${money(r.cashNeeded)}</dd></div><div><dt>Solde après le premier cycle</dt><dd class="${r.firstCycleProfit >= 0 ? 'positive' : 'negative'}">${signed(r.firstCycleProfit)}</dd></div><div><dt>Amortissement du fixe</dt><dd>${payback}</dd></div></dl><p class="field-help">Amortissement par cycles identiques, après vente de tout le stock. Le délai de vente et les variations de prix ne sont pas inclus.</p></details>
     </section>`;
@@ -255,7 +257,7 @@ $('#add-observation').addEventListener('click', () => {
 });
 $('#export-config').addEventListener('click', () => {
   if (validate(config).length) { toast('Corrigez les paramètres avant l’export.'); return; }
-  download(JSON.stringify({ version: 1, config }, null, 2), 'volkorne-scenario.json', 'application/json');
+  download(JSON.stringify({ version: CONFIG_VERSION, config }, null, 2), 'volkorne-scenario.json', 'application/json');
   toast('Configuration et relevés exportés.');
 });
 $('#export-csv').addEventListener('click', () => {
@@ -270,8 +272,7 @@ $('#import-file').addEventListener('change', async event => {
   try {
     if (file.size > 1024 * 1024) throw new Error('Fichier trop volumineux (1 Mo maximum).');
     const parsed = JSON.parse(await file.text());
-    if (parsed.version !== 1) throw new Error('Version de configuration inconnue.');
-    const imported = hydrate(parsed.config);
+    const imported = hydrate(parsed.config, parsed.version);
     config = imported;
     edited = true;
     fillInputs();

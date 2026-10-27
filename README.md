@@ -22,11 +22,11 @@ Ouvrir ensuite `standalone/volkorne.html`. Tout est intégré dans ce fichier. L
 
 ## Fonctionnalités
 
-- Quatre filets : prix et captures moyennes modifiables, comparaison du coût réel du lot, arrondi des unités achetées.
+- Deux filets renseignés à partir de vos repères : renforcé niveau 149 à 17 500 kamas pour 7 montures en moyenne (fourchettes : 15 000–20 000 kamas et 6–8 montures) ; multiplicateur renforcé niveau 200 à 42 000 kamas pour 13,5 montures en moyenne (12–15 montures). Prix et moyennes restent modifiables ; le nombre de filets achetés est arrondi au supérieur.
 - Vingt carburants d’XP : prix mémorisé par référence, quantité de carburant modifiable, consommation partagée par groupe de dix montures, même incomplet.
-- Table d’XP des 200 niveaux, niveau initial, capacité Sage, 1 à 6 enclos simultanés et vagues successives.
+- Table d’XP des 200 niveaux, niveau initial, 1 à 6 enclos simultanés et vagues successives.
 - Répartition du lot entre focus PA et sans focus, prix de la Ga Pa et valeur des autres runes ou ressources.
-- Bénéfice net, taxe, ROI du cycle, prix de Ga Pa à l’équilibre, trésorerie initiale et amortissement de l’investissement fixe.
+- Bénéfice net, taxe fixe de 2 %, ROI du cycle, prix de Ga Pa à l’équilibre, trésorerie initiale et amortissement de l’investissement fixe.
 - Temps actif, attente en enclos et rendement en kamas par heure totale ou active.
 - Comparaison de tous les niveaux, avec trois objectifs : bénéfice, rendement horaire total, ROI du cycle. Export CSV compatible avec les décimales françaises.
 - Configuration et relevés exportables/importables en JSON, interface responsive et utilisation hors ligne après génération du fichier autonome.
@@ -43,13 +43,15 @@ Au coefficient supposé de 50 %, cette projection donne 0,4175 Ga Pa au niveau 5
 
 Des retours de joueurs indiquent que le focus ne change pas le résultat sur les Volkornes. Le mode projection ne lui attribue donc aucun bonus et conserve les autres runes sur le lot complet. Le mode **Mes relevés** permet de saisir des rendements distincts avec et sans focus. Il utilise les valeurs exactes aux niveaux saisis, interpole entre deux relevés, et ne produit aucune estimation en dehors de leur plage. Les rendements saisis sont des runes moyennes par monture, sans nouvelle multiplication par le coefficient.
 
-Tous les prix de départ sont des **exemples**. Il faut les remplacer par ceux du serveur. Les résultats sont des espérances, sans garantie sur un petit lot. Les résultats bruts des sous-groupes sont arrondis pour l’affichage seulement.
+Les prix et rendements des deux filets reprennent vos repères ; les milieux des fourchettes servent de moyennes par défaut. Les prix des carburants restent des **exemples** à ajuster au serveur. Les résultats sont des espérances, sans garantie sur un petit lot. Les résultats bruts des sous-groupes sont arrondis pour l’affichage seulement.
+
+Les sauvegardes et exports JSON de version 1 restent lisibles. La migration remplace les anciens prix et rendements d’exemple des deux filets, conserve les valeurs personnalisées et les relevés, retire les deux autres filets d’exemple et ignore les anciens réglages Sage et taxe. Les nouveaux exports portent la version 2.
 
 ### Carburant et temps
 
 Le carburant remplit une jauge, il ne donne pas instantanément de l’XP. Une jauge affecte jusqu’à dix montures et perd autant de points pour un groupe incomplet. Le calcul arrondit le besoin aux ticks de dix points puis aux unités de carburant achetées, séparément pour chaque groupe. Les surplus et la réserve de jauge sont intégralement facturés, sans crédit de réutilisation ; ce choix est conservateur. La réserve n’est pas comptée comme de l’XP consommée.
 
-Les boutons de tier configurent la vitesse nominale hors Sage (3 600 à 14 400 XP/h), le carburant de la famille correspondante et une réserve de jauge facturée pour rester au-dessus du seuil du tier. Ces vitesses supposent un réapprovisionnement suffisant. Une saisie libre permet d’utiliser une moyenne effectivement observée. Tous les Volkornes du lot sont supposés avoir le même niveau de départ et le même statut Sage ; créer deux simulations pour un lot hétérogène.
+Les boutons de tier configurent la vitesse nominale (3 600 à 14 400 XP/h), le carburant de la famille correspondante et une réserve de jauge facturée pour rester au-dessus du seuil du tier. Ces vitesses supposent un réapprovisionnement suffisant. Une saisie libre permet d’utiliser une moyenne effectivement observée. Tous les Volkornes du lot sont supposés avoir le même niveau de départ. Les capacités des montures, dont Sage, ne sont pas prises en compte. La taxe est fixée à 2 % sur toutes les recettes, y compris les autres ventes.
 
 Le temps total additionne capture, manipulations et attente des vagues successives, sans chevauchement. L’achat de montures au lieu de la capture, la reproduction, les délais de vente, la volatilité des prix et le coût d’opportunité du temps actif ne sont pas modélisés automatiquement. Les autres frais et ventes permettent d’ajuster le bilan.
 
@@ -74,6 +76,6 @@ npm test
 npm run build
 ```
 
-Les tests couvrent les seuils d’XP, les groupes incomplets, Sage, les vagues d’enclos, les arrondis des filets et du carburant, la réserve, les taxes, le seuil de rentabilité, l’amortissement, les relevés, l’interpolation, les entrées invalides, les cas sans coût/temps/rendement, l’export CSV et le serveur HTTP local. Le test HTTP nécessite l’accès à la boucle locale du système.
+Les tests couvrent les seuils d’XP, les groupes incomplets, l’absence de bonus Sage, la taxe fixe, la migration des anciennes sauvegardes, les vagues d’enclos, les arrondis des filets et du carburant, la réserve, les taxes, le seuil de rentabilité, l’amortissement, les relevés, l’interpolation, les entrées invalides, les cas sans coût/temps/rendement, l’export CSV et le serveur HTTP local. Le test HTTP nécessite l’accès à la boucle locale du système.
 
 Le fichier autonome est généré depuis les mêmes sources que l’aperçu. Le build vérifie également la syntaxe du module JavaScript assemblé. La CI lance ces trois commandes ; aucun déploiement automatique n’est configuré.

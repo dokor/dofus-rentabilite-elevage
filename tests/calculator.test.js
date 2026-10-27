@@ -1,10 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MOUNT_XP } from '../dist/xp-data.js';
-import { defaultConfig, validate, hydrate, compareNets, calculate, compareLevels, bestLevel, runeYield, csv, FUELS } from '../dist/calculator.js';
+import { defaultConfig, validate, hydrate, compareNets, calculate, compareLevels, bestLevel, runeYield, csv, FUELS, NETS, SALE_TAX, CONFIG_VERSION } from '../dist/calculator.js';
 
 function scenario(overrides = {}) { return { ...defaultConfig(), ...overrides }; }
 function near(actual, expected) { assert.ok(Math.abs(actual - expected) < 1e-7, `${actual} ≠ ${expected}`); }
+
+test('net defaults use the supplied price and capture range midpoints', () => {
+  assert.deepEqual(NETS.map(n => [n.id, n.level, n.price, n.yield]), [
+    ['reinforced', 149, 17500, 7],
+    ['both', 200, 42000, 13.5],
+  ]);
+  const r = calculate(scenario({ netId: 'both' }));
+  assert.equal(r.net.quantity, 2);
+  assert.equal(r.net.cost, 84000);
+  near(r.profit, 55660);
+});
 
 test('XP table contains all 200 mount levels and the verified thresholds', () => {
   assert.equal(MOUNT_XP.length, 201);
@@ -16,10 +27,10 @@ test('XP table contains all 200 mount levels and the verified thresholds', () =>
   for (let level = 2; level <= 200; level++) assert.ok(MOUNT_XP[level] > MOUNT_XP[level - 1]);
 });
 
-test('20 level-55 mounts, 10 focused, use 10 nets and 16 fuel units, not 160', () => {
+test('20 level-55 mounts, 10 focused, use 3 reinforced nets and 16 fuel units', () => {
   const r = calculate(defaultConfig());
-  assert.equal(r.net.quantity, 10);
-  assert.equal(r.net.cost, 20000);
+  assert.equal(r.net.quantity, 3);
+  assert.equal(r.net.cost, 52500);
   assert.equal(r.batches, 2);
   assert.equal(r.waves, 1);
   assert.equal(r.consumed, 42910);
@@ -29,9 +40,9 @@ test('20 level-55 mounts, 10 focused, use 10 nets and 16 fuel units, not 160', (
   near(r.runes, 8.35);
   near(r.focusRunes, 4.175);
   near(r.normalRunes, 4.175);
-  near(r.profit, 119660);
-  near(r.roi, 119660 / 44000 * 100);
-  near(r.elapsedHours, 42910 / 3600 + 35 / 60);
+  near(r.profit, 87160);
+  near(r.roi, 87160 / 76500 * 100);
+  near(r.elapsedHours, 42910 / 3600 + 14 / 60);
 });
 
 test('focus receives no invented yield bonus under the default projection', () => {
@@ -56,11 +67,12 @@ test('one paddock processes two groups sequentially, two paddocks in parallel', 
   assert.equal(one.activeHours, two.activeHours);
 });
 
-test('Sage halves fuel consumption, without dividing capture work', () => {
+test('legacy Sage settings never change XP, fuel or elapsed time', () => {
   const base = calculate(defaultConfig());
   const sage = calculate(scenario({ sage: true }));
-  assert.equal(sage.consumed, 21460);
-  assert.equal(sage.fuelQuantity, 8);
+  assert.equal(sage.consumed, base.consumed);
+  assert.equal(sage.fuelQuantity, base.fuelQuantity);
+  assert.equal(sage.enclosureHours, base.enclosureHours);
   assert.equal(sage.activeHours, base.activeHours);
   assert.equal(sage.runes, base.runes);
 });
@@ -81,16 +93,18 @@ test('an already reached level requires no fuel or reserve', () => {
 });
 
 test('net choice compares rounded total purchase cost rather than nominal price', () => {
-  const c = scenario({ count: 3, focusCount: 0 });
-  c.nets[0].price = 1000;
-  c.nets[1].price = 1700;
-  assert.equal(compareNets(c)[0].id, 'universal');
-  assert.equal(compareNets(c).find(n => n.id === 'multiplier').cost, 3400);
+  const c = scenario({ count: 15, focusCount: 0 });
+  assert.equal(compareNets(c)[0].id, 'reinforced');
+  assert.equal(compareNets(c).find(n => n.id === 'both').cost, 84000);
+  // At the upper observed yield, one multiplicative net captures the whole lot.
+  c.nets[1].yield = 15;
+  assert.equal(compareNets(c)[0].id, 'both');
+  assert.equal(compareNets(c)[0].cost, 42000);
 });
 
 test('fractional captures per net are supported and round the number of nets up', () => {
   const c = defaultConfig();
-  c.nets[1].yield = 2.7;
+  c.nets[0].yield = 2.7;
   assert.equal(calculate(c).net.quantity, 8);
 });
 
@@ -100,7 +114,7 @@ test('observed focused and normal yields are independently valued', () => {
   assert.equal(r.runes, 10);
   assert.equal(r.otherRevenue, 1000);
   assert.equal(r.kind, 'relevé');
-  near(r.profit, 201000 * .98 - 44000);
+  near(r.profit, 201000 * .98 - 76500);
 });
 
 test('observations interpolate inside their range, never outside', () => {
@@ -135,24 +149,26 @@ test('zero Ga Pa yield has no finite break-even rune price', () => {
 });
 
 test('break-even price actually sets cycle profit to zero', () => {
-  const c = scenario({ loot: 1000, otherRunes: 100, tax: 3 });
+  const c = scenario({ loot: 1000, otherRunes: 100 });
   const threshold = calculate(c).breakEven;
   near(calculate({ ...c, runePrice: threshold }).profit, 0);
 });
 
-test('tax applies to all sales, not to the cost basis', () => {
+test('tax is always 2% of all sales, even with a legacy tax override', () => {
   const c = scenario({ tax: 10, loot: 1000, otherRunes: 100 });
   const r = calculate(c);
-  near(r.revenue, (167000 + 1000 + 2000) * .9);
-  near(r.profit, r.revenue - 44000);
+  assert.equal(SALE_TAX, .02);
+  near(r.revenue, (167000 + 1000 + 2000) * .98);
+  near(r.profit, r.revenue - 76500);
+  near(r.revenue, calculate({ ...c, tax: 0 }).revenue);
 });
 
 test('fixed investment affects cash and payback separately from cycle profit', () => {
   const base = calculate(defaultConfig());
   const r = calculate(scenario({ fixedInvestment: 250000 }));
   assert.equal(r.profit, base.profit);
-  assert.equal(r.cashNeeded, 294000);
-  near(r.firstCycleProfit, -130340);
+  assert.equal(r.cashNeeded, 326500);
+  near(r.firstCycleProfit, -162840);
   assert.equal(r.payback, 3);
   assert.equal(calculate(scenario({ fixedInvestment: 100, runePrice: 0 })).payback, null);
 });
@@ -190,18 +206,51 @@ test('all 20 fuel profiles have 3.7 charges and tier ceilings', () => {
 });
 
 test('bad numeric inputs and duplicate observations are rejected', () => {
-  for (const overrides of [{ count: 0 }, { count: 2.5 }, { runePrice: -1 }, { xpHour: 0 }, { charge: 0 }, { tax: 100 }, { focusCount: 21 }, { paddocks: 7 }, { level: 201 }, { startLevel: 56 }, { count: NaN }, { coefficient: Infinity }, { observations: [{ level: 55, normal: .5, focus: .5 }, { level: 55, normal: .5, focus: .5 }] }]) {
+  for (const overrides of [{ count: 0 }, { count: 2.5 }, { runePrice: -1 }, { xpHour: 0 }, { charge: 0 }, { focusCount: 21 }, { paddocks: 7 }, { level: 201 }, { startLevel: 56 }, { count: NaN }, { coefficient: Infinity }, { observations: [{ level: 55, normal: .5, focus: .5 }, { level: 55, normal: .5, focus: .5 }] }]) {
     assert.ok(validate(scenario(overrides)).length, JSON.stringify(overrides));
   }
 });
 
 test('JSON import validates structure and preserves zero values', () => {
-  const c = hydrate(JSON.parse(JSON.stringify(scenario({ runePrice: 0, tax: 0 }))));
+  const c = hydrate(JSON.parse(JSON.stringify(scenario({ runePrice: 0 }))));
   assert.equal(c.runePrice, 0);
-  assert.equal(c.tax, 0);
+  assert.equal('tax' in c, false);
+  assert.equal('sage' in c, false);
   assert.throws(() => hydrate({ ...defaultConfig(), fuelPrices: {} }));
-  assert.throws(() => hydrate({ ...defaultConfig(), sage: 'false' }));
   assert.throws(() => hydrate(null));
+  assert.throws(() => hydrate(defaultConfig(), 99));
+});
+
+test('v1 storage and JSON migrate to the supplied nets and discard tax and Sage', () => {
+  const legacy = { ...defaultConfig(), tax: 10, sage: true, netId: 'multiplier', nets: [
+    { id: 'universal', name: 'Filet de capture universel', price: 1200, yield: 1 },
+    { id: 'multiplier', name: 'Filet multiplicateur de Volkorne', price: 2000, yield: 2 },
+    { id: 'reinforced', name: 'Filet à Volkorne renforcé', price: 4000, yield: 3 },
+    { id: 'both', name: 'Filet multiplicateur de Volkorne renforcé', price: 6000, yield: 6 },
+  ] };
+  const migrated = hydrate(legacy, 1);
+  assert.equal(migrated.netId, 'reinforced');
+  assert.deepEqual(migrated.nets, NETS);
+  assert.equal('sage' in migrated, false);
+  assert.equal('tax' in migrated, false);
+  near(calculate(migrated).profit, 87160);
+  assert.deepEqual(hydrate(migrated, CONFIG_VERSION), migrated);
+  assert.equal(legacy.nets.length, 4);
+});
+
+test('migration preserves custom supported net prices, yields and mount observations', () => {
+  const observations = [{ level: 55, normal: .5, focus: .6 }];
+  const saved = scenario({ netId: 'both', observations, runePrice: 21000 });
+  saved.nets[0].price = 19000;
+  saved.nets[0].yield = 8;
+  saved.nets[1].price = 41000;
+  const migrated = hydrate(saved, 1);
+  assert.equal(migrated.netId, 'both');
+  assert.equal(migrated.nets[0].price, 19000);
+  assert.equal(migrated.nets[0].yield, 8);
+  assert.equal(migrated.nets[1].price, 41000);
+  assert.equal(migrated.runePrice, 21000);
+  assert.deepEqual(migrated.observations, observations);
 });
 
 test('CSV exports all rows, with unavailable data left empty and Excel decimal commas', () => {
