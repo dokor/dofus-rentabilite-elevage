@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#182f29">
+  <meta name="description" content="Simulez les coûts, les runes Ga Pa et le rendement de vos Volkornes. Comparez les niveaux, les filets et vos relevés de brisage.">
+  <title>Volkorne — L’atelier de rentabilité</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au calculateur</a>
+  <aside class="sidebar">
+    <a class="brand" href="#simulation" aria-label="Volkorne, accueil">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="m24 2 20 22-20 22L4 24Z" fill="none" stroke="currentColor"/><path d="m13 14 11 22 11-22-11 9Z" fill="currentColor"/></svg>
+      <span>VOLKORNE<small>L’ATELIER DE RENTABILITÉ</small></span>
+    </a>
+    <div class="nav-label">VOTRE ATELIER</div>
+    <nav aria-label="Navigation principale">
+      <button class="nav-item active" data-tab="simulation"><span class="nav-icon">◈</span> Simulateur <span class="nav-arrow">↗</span></button>
+      <button class="nav-item" data-tab="comparison"><span class="nav-icon">▥</span> Comparer les niveaux</button>
+      <button class="nav-item" data-tab="method"><span class="nav-icon">⊙</span> Méthode & sources</button>
+    </nav>
+    <div class="sidebar-note"><span class="small-star">✦</span><p>De la capture<br>aux dernières runes.</p><small>Un outil pour chiffrer chaque choix de votre élevage.</small></div>
+    <div class="sidebar-footer"><span class="online-dot"></span> DOFUS 3 · Outil communautaire<small>Vos données restent sur cet appareil.</small></div>
+  </aside>
+  <div class="workspace">
+    <header class="topbar"><span>ÉLEVAGE <span class="breadcrumb">/</span> <span id="breadcrumb-current">Simulateur</span></span><div class="top-actions"><span class="save-status" id="save-status">Enregistrement local</span><button class="button button-outline small" id="export-config">↓ Exporter</button><button class="icon-button" id="import-config" aria-label="Importer une configuration" title="Importer une configuration">↑</button><input id="import-file" type="file" accept=".json,application/json" hidden></div></header>
+    <main id="main">
+      <section id="simulation" class="tab-panel" aria-label="Simulateur">
+        <div class="page-intro"><div><p class="eyebrow"><span></span> CAPTURER. ÉLEVER. VALORISER.</p><h1>Chaque Volkorne compte.</h1><p class="intro-copy">Trouvez l’équilibre entre XP, temps et kamas.</p></div><button class="text-button" id="load-example">↺ Scénario 20 × niv. 55</button></div>
+        <div class="assumption-banner"><span class="banner-symbol">i</span><p><strong>Une estimation, à confronter au jeu.</strong> Le rendement par niveau reste une projection. Le focus est supposé sans effet sur les Volkornes. <button class="inline-button" data-tab="method">Voir les hypothèses ↗</button></p><span class="example-chip">Prix d’exemple</span></div>
+        <form id="calculator-form" novalidate>
+          <div class="scenario-card">
+            <div class="scenario-label"><span class="section-number">01</span><strong>Votre scénario</strong><span class="muted">Le point de départ de la simulation</span></div>
+            <div class="scenario-fields">
+              <label>Volkornes à élever<div class="input-with-unit"><input id="count" data-key="count" type="number" min="1" max="10000" step="1" value="20"><span>montures</span></div></label>
+              <label>Niveau de brisage<div class="input-with-unit"><input id="level" data-key="level" type="number" min="1" max="200" step="1" value="55"><span>/ 200</span></div></label>
+              <label>Prix d’une rune Ga Pa<div class="input-with-unit featured-input"><input id="runePrice" data-key="runePrice" type="number" min="0" step="100" value="20000"><span>kamas</span></div></label>
+              <label>Montures en focus PA<div class="input-with-unit"><input id="focusCount" data-key="focusCount" type="number" min="0" max="20" step="1" value="10"><span id="normal-count">10 sans focus</span></div></label>
+            </div>
+          </div>
+          <div id="validation" class="validation" role="alert" hidden></div>
+          <div class="simulation-grid">
+            <div class="settings-column">
+              <section class="card">
+                <div class="card-heading"><div><span class="section-kicker">ACQUISITION</span><h2>Le bon filet, au bon prix.</h2></div><span class="line-icon">⌁</span></div>
+                <p class="card-description">Saisissez vos prix HDV et votre capture moyenne par filet utilisé.</p>
+                <div class="net-table"><div class="net-table-head"><span>FILET</span><span>PRIX / U.</span><span>CAPTURES / U.</span></div><div id="net-rows"></div></div>
+                <div class="subtle-callout" id="net-advice"></div>
+                <label class="full-field">Temps moyen par filet utilisé<div class="input-with-unit"><input id="captureMinutes" data-key="captureMinutes" type="number" min="0" step="0.1"><span>min</span></div></label>
+                <p class="field-help">Le nombre de filets est arrondi au supérieur. Les captures excédentaires ne sont pas valorisées.</p>
+              </section>
+              <section class="card">
+                <div class="card-heading"><div><span class="section-kicker">CROISSANCE</span><h2>Un carburant, dix montures.</h2></div><span class="line-icon">♧</span></div>
+                <p class="card-description">Un carburant alimente la jauge d’un enclos de 10 montures. Un lot incomplet consomme autant.</p>
+                <label class="full-field">Carburant utilisé<select id="fuelId" data-key="fuelId"></select></label>
+                <div class="two-fields">
+                  <label>Prix unitaire<div class="input-with-unit"><input id="fuelPrice" type="number" min="0" step="10"><span>k</span></div></label>
+                  <label>Carburant par unité<div class="input-with-unit"><input id="charge" data-key="charge" type="number" min="1" step="1"><span>points</span></div></label>
+                </div>
+                <div class="two-fields">
+                  <label>Niveau de départ<input id="startLevel" data-key="startLevel" type="number" min="1" max="200" step="1"></label>
+                  <label>Enclos simultanés<select id="paddocks" data-key="paddocks"><option value="1">1 enclos · 10 places</option><option value="2">2 enclos · 20 places</option><option value="3">3 enclos · 30 places</option><option value="4">4 enclos · 40 places</option><option value="5">5 enclos · 50 places</option><option value="6">6 enclos · 60 places</option></select></label>
+                </div>
+                <label class="full-field">Vitesse moyenne par monture, hors capacité Sage<div class="input-with-unit"><input id="xpHour" data-key="xpHour" type="number" min="1" step="100"><span>XP / h</span></div></label>
+                <div class="speed-presets" aria-label="Repères de vitesse"><button type="button" data-speed="3600">Tier 1 · 3 600</button><button type="button" data-speed="7200">Tier 2 · 7 200</button><button type="button" data-speed="10800">Tier 3 · 10 800</button><button type="button" data-speed="14400">Tier 4 · 14 400</button></div>
+                <p class="field-help">Les boutons configurent un tier maintenu, son carburant et sa réserve facturée. La saisie libre utilise votre vitesse moyenne réelle.</p>
+                <label class="checkbox-field"><input id="sage" data-key="sage" type="checkbox"><span>Toutes les montures ont la capacité Sage <small>XP doublée pour le même carburant</small></span></label>
+                <details class="advanced"><summary>Réserve de jauge & temps de manipulation</summary><label class="full-field">Carburant restant réservé par lot de 10<div class="input-with-unit"><input id="reserve" data-key="reserve" type="number" min="0" step="1000"><span>points</span></div></label><p class="field-help">Coût de préremplissage pour maintenir les tiers élevés. Réserve et surplus sont facturés, sans crédit de réutilisation entre lots.</p><label class="full-field">Manipulations pour le lot complet<div class="input-with-unit"><input id="handlingMinutes" data-key="handlingMinutes" type="number" min="0" step="1"><span>min</span></div></label></details>
+              </section>
+              <section class="card">
+                <div class="card-heading"><div><span class="section-kicker">VENTE & BUDGET</span><h2>Tout dans la balance.</h2></div><span class="line-icon">⚖</span></div>
+                <div class="two-fields"><label>Taxe de vente<div class="input-with-unit"><input id="tax" data-key="tax" type="number" min="0" max="99.99" step="0.1"><span>%</span></div></label><label>Autres frais du cycle<div class="input-with-unit"><input id="otherCosts" data-key="otherCosts" type="number" min="0" step="100"><span>k</span></div></label></div>
+                <label class="full-field">Ressources de capture et autres ventes, pour le lot<div class="input-with-unit"><input id="loot" data-key="loot" type="number" min="0" step="100"><span>k bruts</span></div></label>
+                <label class="full-field">Autres runes, par monture sans focus<div class="input-with-unit"><input id="otherRunes" data-key="otherRunes" type="number" min="0" step="10"><span>k bruts</span></div></label><p class="field-help">Projection : appliqué à toutes les montures puisque le focus est ignoré. Relevés : appliqué au groupe sans focus seulement. Ajoutez les autres ventes focus au champ précédent.</p>
+                <label class="full-field">Investissement fixe à amortir<div class="input-with-unit"><input id="fixedInvestment" data-key="fixedInvestment" type="number" min="0" step="1000"><span>k</span></div></label><p class="field-help">Séparé des frais récurrents : équipement, achat initial, etc.</p>
+              </section>
+            </div>
+            <div class="results-column" id="results-column">
+              <div id="results"></div>
+              <section class="card chart-card"><div class="card-heading"><div><span class="section-kicker">LE NIVEAU CHANGE LA DONNE</span><h2>Jusqu’où les monter ?</h2></div><span class="chart-key"><i></i> Bénéfice net</span></div><div id="chart"></div><div class="chart-bottom"><p>Comparaison avec vos coûts et votre répartition focus.</p><button type="button" class="text-button" data-tab="comparison">Voir les 200 niveaux ↗</button></div></section>
+              <section class="card recommendation-card"><span class="section-kicker">VOTRE PROCHAIN CHOIX</span><div id="recommendation"></div></section>
+              <p class="result-footnote">Les runes affichées sont des moyennes statistiques. Un petit lot peut s’écarter fortement de l’estimation. Les prix de départ sont des exemples, à remplacer par ceux de votre serveur.</p>
+            </div>
+          </div>
+        </form>
+      </section>
+      <section id="comparison" class="tab-panel" aria-label="Comparaison des niveaux" hidden>
+        <div class="page-intro"><div><p class="eyebrow"><span></span> L’ARBITRAGE XP / TEMPS / KAMAS</p><h1>Choisir son niveau d’arrivée.</h1><p class="intro-copy">Chaque niveau est recalculé avec les paramètres de votre simulateur.</p></div><button class="button button-outline" id="export-csv">↓ Exporter en CSV</button></div>
+        <div class="comparison-toolbar"><label>Optimiser pour<select id="objective" data-key="objective"><option value="profit">Bénéfice net par cycle</option><option value="hour">Kamas par heure totale</option><option value="roi">Retour sur frais du cycle</option></select></label><div id="comparison-best"></div></div>
+        <div class="card comparison-table-card"><div class="table-scroll"><table><caption class="sr-only">Comparaison du rendement des Volkornes du niveau de départ au niveau 200. Cliquez un niveau pour l’utiliser dans le simulateur.</caption><thead><tr><th>Niveau</th><th>XP / monture</th><th>Carburants</th><th>Durée totale</th><th>Ga Pa moy.</th><th>Coût cycle</th><th>Bénéfice net</th><th>ROI</th><th>K / h totale</th></tr></thead><tbody id="level-table"></tbody></table></div></div><p class="result-footnote">En mode relevés, seuls les niveaux observés ou compris entre deux relevés sont estimés. Aucun prolongement au-delà des relevés. Le meilleur niveau affiché est conditionnel aux paramètres et au modèle choisis.</p>
+      </section>
+      <section id="method" class="tab-panel" aria-label="Méthode et sources" hidden>
+        <div class="page-intro"><div><p class="eyebrow"><span></span> DES HYPOTHÈSES QUI RESTENT VISIBLES</p><h1>Comprendre avant de briser.</h1><p class="intro-copy">Affinez le modèle avec les résultats de votre serveur.</p></div></div>
+        <div id="method-validation" class="validation" role="alert" hidden></div><div class="method-grid"><section class="card method-card"><span class="section-kicker">RENDEMENT DU BRISAGE</span><h2>Projection ou relevés en jeu ?</h2><p>Aucune table officielle de rendement des Volkornes par niveau n’a pu être confirmée. La projection applique une formule communautaire d’équipement à une ligne hypothétique de 1 PA. Elle peut différer du comportement réel des montures.</p><label class="full-field">Modèle de calcul<select id="model" data-key="model"><option value="theory">Projection théorique · à calibrer</option><option value="observed">Mes relevés · interpolation entre niveaux</option></select></label><div id="theory-settings"><label class="full-field">Coefficient de brisage supposé<div class="input-with-unit"><input id="coefficient" data-key="coefficient" type="number" min="0" step="1"><span>%</span></div></label><div class="formula">Ga Pa / monture =<br>((100 × niveau × 0,015 + 1) / 100) × coefficient / 100</div><p class="field-help">À 50 % : 0,4175 Ga Pa au niveau 55, 0,755 au niveau 100. Le coefficient de 50 % est rapporté par la communauté. Le bonus PA équipé n’apparaît qu’au niveau 100 ; cette formule ne prétend pas décrire la mécanique interne des montures.</p></div><div class="method-warning"><strong>Focus PA : aucune prime automatique.</strong><p>Des joueurs rapportent un rendement identique avec et sans focus sur les Volkornes. La projection utilise donc les mêmes rendements et conserve les autres runes. Vos relevés peuvent définir deux résultats différents.</p></div></section>
+        <section class="card method-card"><span class="section-kicker">VOTRE TERRAIN FAIT FOI</span><h2>Renseigner les résultats réels.</h2><p>À chaque niveau testé, indiquez le nombre moyen de Ga Pa par monture pour chaque groupe. Exemple de saisie : 5 runes obtenues sur 10 montures donnent <strong>0,5</strong>. Les deux colonnes doivent être renseignées, même si les valeurs sont identiques.</p><div class="observation-head"><span>NIVEAU</span><span>SANS FOCUS</span><span>FOCUS PA</span><span></span></div><div id="observation-rows"></div><button type="button" class="button button-outline" id="add-observation">+ Ajouter un relevé</button><p class="field-help">Il s’agit de runes moyennes, pas du coefficient du concasseur. Les relevés ne sont pas multipliés par le coefficient. La comparaison interpole linéairement entre eux ; une seule ligne couvre uniquement ce niveau.</p><div class="subtle-callout">Pour estimer la variabilité, notez également la taille de vos échantillons dans votre suivi de jeu. Un résultat sur 10 montures reste peu précis.</div></section>
+        <section class="card method-card"><span class="section-kicker">COÛTS & TEMPS</span><h2>Ce que compte la simulation.</h2><ul class="method-list"><li><strong>Capture :</strong> plafond(lot / captures moyennes) × prix du filet. Le surplus n’est pas revendu.</li><li><strong>XP :</strong> table des montures de niveau 1 à 200 ; 42 906 XP au niveau 55. La capacité Sage divise par deux le carburant nécessaire.</li><li><strong>Carburant :</strong> arrondi aux ticks de 10 points puis aux unités achetées, par groupe de 10. Réserve et surplus sont facturés intégralement.</li><li><strong>Durée :</strong> temps actif + temps d’enclos × vagues successives. La capture précède l’élevage ; pas de chevauchement ni de délai de vente modélisé.</li><li><strong>Bénéfice :</strong> ventes après taxe − frais du cycle. Le ROI du cycle exclut l’investissement fixe, dont l’amortissement est affiché séparément.</li></ul><p>Les carburants ne versent pas directement de l’XP à l’utilisation : ils remplissent une jauge consommée avec le temps. Pour accélérer, il faut maintenir un tier élevé. Renseignez une vitesse moyenne réaliste et le coût de réserve associé.</p></section>
+        <section class="card method-card"><span class="section-kicker">PROVENANCE</span><h2>Des sources, et leurs limites.</h2><p class="source-date">Consultées le 27 octobre 2026 · DOFUS PC 3.7</p><a class="source-link" href="https://www.dofuspourlesnoobs.com/guide-de-l-eleveur.html" target="_blank" rel="noopener noreferrer"><strong>Guide de l’éleveur · Dofus pour les Noobs ↗</strong><span>10 places, jauges, carburants et changements de la 3.7. Source communautaire.</span></a><a class="source-link" href="https://www.dofuspourlesnoobs.com/tableaux-dexpeacuterience.html" target="_blank" rel="noopener noreferrer"><strong>Table d’XP des montures ↗</strong><span>Seuils cumulés, jusqu’à 867 582 XP au niveau 200.</span></a><a class="source-link" href="https://dofus-portals.fr/outils/calculateur-brisage/" target="_blank" rel="noopener noreferrer"><strong>Formule de brisage d’équipements · Dofus Portals ↗</strong><span>Utilisée pour la projection uniquement. Son application aux Volkornes n’est pas confirmée.</span></a><a class="source-link" href="https://www.reddit.com/r/DOFUS_FRANCE/comments/1wcf826/brisage_de_volkorne/" target="_blank" rel="noopener noreferrer"><strong>Retours de joueurs sur le focus · septembre 2026 ↗</strong><span>Focus sans effet et coefficient de 50 % rapportés ; témoignages, sans validation officielle.</span></a><p class="field-help">Le site officiel Ankama n’a pas fourni de contenu exploitable lors de la vérification. Les prix HDV et les taux réels ne sont pas récupérés automatiquement.</p></section></div>
+      </section>
+      <footer class="page-footer"><span>VOLKORNE <span>·</span> L’atelier de rentabilité</span><button class="text-button" id="reset">Réinitialiser les paramètres</button><span>Indépendant d’Ankama</span></footer>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <dialog id="reset-dialog"><h2>Repartir du scénario d’exemple ?</h2><p>Vos prix et relevés locaux seront remplacés. Exportez-les au préalable si vous souhaitez les conserver.</p><div class="dialog-actions"><button class="button button-outline" id="cancel-reset">Annuler</button><button class="button button-dark" id="confirm-reset">Réinitialiser</button></div></dialog>
+</body>
+</html>

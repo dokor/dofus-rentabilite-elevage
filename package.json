@@ -1,0 +1,14 @@
+{
+  "name": "volkorne-atelier",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Calculateur local de rentabilité des Volkornes pour DOFUS 3",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "check": "node --check dist/calculator.js && node --check dist/app.js && node --check scripts/serve.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
