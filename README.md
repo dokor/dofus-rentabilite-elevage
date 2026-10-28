@@ -2,6 +2,12 @@
 
 Calculateur local en français pour chiffrer la capture, la montée en niveau et le brisage de Volkornes sur DOFUS PC 3.7. Sans dépendances, compte, télémétrie ou récupération automatique des prix HDV.
 
+## Site en ligne
+
+[Ouvrir le calculateur sur Google Sites](https://sites.google.com/view/dofus-rentabilite-elevage/calculateur).
+
+Le fichier autonome est intégré en pleine page. La publication est manuelle : une modification du dépôt ne met pas automatiquement à jour Google Sites. Voir la [procédure de publication et les vérifications des listes déroulantes](docs/google-sites.md).
+
 ## Utilisation
 
 Avec Node.js 20 ou plus récent :
