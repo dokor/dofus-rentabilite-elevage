@@ -1,17 +1,30 @@
-// Observed counts, not equipment-formula predictions. A missing mode stays null.
-export const PUBLIC_CRUSHING_OBSERVATIONS = Object.freeze([
+// Observed counts, not equipment-formula predictions. No interpolation.
+export const CRUSHING_OBSERVATIONS = Object.freeze([
   Object.freeze({
     id: 'solomonk-2026-08-04-level-53',
     level: 53,
     mounts: 10000,
     gaPa: 3832,
     normal: 3832 / 10000,
-    focus: null,
+    origin: 'public',
     author: 'Solomonk-e',
     published: '2026-08-04',
     verified: '2026-10-27',
     source: 'https://www.youtube.com/watch?v=fGqEPyQoBgk&t=1822s',
     levelSource: 'https://www.youtube.com/watch?v=fGqEPyQoBgk&lc=UgxQG9dbDLVEbMLsW2Z4AaABAg.A_5xazn3BBRA_5zmc6NnPu',
     note: 'Total visible dans le bilan ; niveau 53 confirmé par l’auteur en commentaire. Lot sans focus. Version exacte non précisée ; validité en 3.7 à recontrôler.',
+  }),
+  Object.freeze({
+    id: 'user-2026-10-29-level-71',
+    level: 71,
+    mounts: 30,
+    gaPa: 18,
+    normal: 18 / 30,
+    origin: 'user',
+    author: 'Relevé personnel communiqué pour ce calculateur',
+    reported: '2026-10-29',
+    statRunes: 790,
+    fuel: Object.freeze({ id: 'fuel-0-4', price: 2400, perBatch: 8, quantity: 24 }),
+    note: '18 Ga Pa pour 30 Volkornes niveau 71. Carburant : 8 Gigantesques Extraits à 2 400 k par groupe de 10, soit 24 unités et 57 600 k pour le lot. Les 790 runes de stats ne sont pas valorisées. Petit échantillon ; version exacte et date du brisage non précisées.',
   }),
 ]);
