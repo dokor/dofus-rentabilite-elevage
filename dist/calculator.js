@@ -16,7 +16,7 @@ export function defaultConfig() {
   return {
     count: 20, startLevel: 1, level: 53, runePrice: 20000,
     nets: NETS.map(n => ({ ...n })), netId: 'reinforced',
-    fuelId: 'fuel-0-2', fuelPrices: Object.fromEntries(FUELS.map(f => [f.id, 1500])),
+    fuelId: 'fuel-0-2', fuelPrices: Object.fromEntries(FUELS.map(f => [f.id, f.id === 'fuel-0-4' ? 2400 : 1500])),
     charge: 6000, xpHour: 3600, paddocks: 2, reserve: 0,
     captureMinutes: 3, handlingMinutes: 5, otherCosts: 0, fixedInvestment: 0,
     loot: 0, otherRunes: 0, model: 'manual', normalRate: 38.32, observations: [], objective: 'profit',

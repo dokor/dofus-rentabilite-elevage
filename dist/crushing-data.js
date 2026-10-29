@@ -24,6 +24,7 @@ export const CRUSHING_OBSERVATIONS = Object.freeze([
     author: 'Relevé personnel communiqué pour ce calculateur',
     reported: '2026-10-29',
     statRunes: 790,
-    note: '18 Ga Pa pour 30 Volkornes niveau 71. Les 790 runes de stats ne sont pas valorisées. Petit échantillon ; version exacte et date du brisage non précisées.',
+    fuel: Object.freeze({ id: 'fuel-0-4', price: 2400, perBatch: 8, quantity: 24 }),
+    note: '18 Ga Pa pour 30 Volkornes niveau 71. Carburant : 8 Gigantesques Extraits à 2 400 k par groupe de 10, soit 24 unités et 57 600 k pour le lot. Les 790 runes de stats ne sont pas valorisées. Petit échantillon ; version exacte et date du brisage non précisées.',
   }),
 ]);

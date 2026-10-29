@@ -304,6 +304,28 @@ test('level 71 uses the user count and never values 790 stat runes', () => {
   assert.equal(calculate(c, 72).available, false);
 });
 
+test('level 71 consumes 8 Gigantic Extracts per group of 10 at 2400 kamas', () => {
+  const sample = CRUSHING_OBSERVATIONS.find(r => r.level === 71);
+  assert.equal(defaultConfig().fuelPrices[sample.fuel.id], 2400);
+  const c = { ...defaultConfig(), count: sample.mounts, level: sample.level, model: 'community',
+    fuelId: sample.fuel.id, charge: FUELS.find(f => f.id === sample.fuel.id).charge };
+  c.fuelPrices[c.fuelId] = sample.fuel.price;
+  const r = calculate(c);
+  assert.equal(r.batches, 3);
+  assert.equal(r.fuelPerBatch, sample.fuel.perBatch);
+  assert.equal(r.fuelPerBatch, 8);
+  assert.equal(r.fuelQuantity, sample.fuel.quantity);
+  assert.equal(r.fuelQuantity, 24);
+  assert.equal(r.fuelCost, 57600);
+  assert.equal(r.net.cost, 87500);
+  assert.equal(r.costs, 145100);
+  assert.equal(r.revenue, 352800);
+  assert.equal(r.otherRevenue, 0);
+  assert.equal(r.profit, 207700);
+  assert.equal(calculate({ ...c, count: 10 }).fuelQuantity, 8);
+  assert.equal(calculate({ ...c, count: 20 }).fuelQuantity, 16);
+});
+
 test('two measured levels allow a bounded ranking, fabricated interpolations do not', () => {
   const c = scenario({ observations: [{ level: 50, normal: .4 }, { level: 55, normal: .4 }] });
   const rows = compareLevels(c);

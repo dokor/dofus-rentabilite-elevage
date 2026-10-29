@@ -26,6 +26,7 @@ C’est un relevé historique déclaré par son auteur, sans données individuel
 
 - 30 Volkornes niveau 71 : **18 Ga Pa**, soit **0,6 par monture (60 %)**.
 - 790 runes de stats : conservées comme information, exclues des recettes.
+- Carburant précisé ensuite : 8 Gigantesques Extraits à 2 400 k **par groupe de 10**, soit 24 unités et 57 600 k pour les 30 montures. Ce montant concorde avec le calcul automatique au départ du niveau 1, sans réserve.
 - Source : communication directe de l’utilisateur du projet, sans lien public ni validation indépendante.
 - La date de communication ne certifie pas la date du brisage. Version exacte du jeu non précisée.
 - Petit échantillon : un autre lot peut produire un résultat différent.
@@ -42,4 +43,4 @@ Pour ajouter une référence, consigner le niveau exact, l’effectif brisé, le
 
 ## Saisie directe pour la rentabilité
 
-Le mode « Taux saisi » teste une hypothèse en pourcentage à partir des prix des filets, carburants et Ga Pa. Le taux initial de 38,32 % reprend le point public du niveau 53 ; toute modification ou utilisation à un autre niveau reste une hypothèse. Ce mode ne crée aucun relevé ni classement. Les boutons de référence chargent les relevés intégrés ; celui du niveau 71 configure 30 montures et exclut la valeur des runes de stats.
+Le mode « Taux saisi » teste une hypothèse en pourcentage à partir des prix des filets, carburants et Ga Pa. Le taux initial de 38,32 % reprend le point public du niveau 53 ; toute modification ou utilisation à un autre niveau reste une hypothèse. Ce mode ne crée aucun relevé ni classement. Les boutons de référence chargent les relevés intégrés ; celui du niveau 71 configure 30 montures, charge les Gigantesques Extraits à 2 400 k (départ niveau 1, réserve nulle) et exclut la valeur des runes de stats. Les prix des filets sont conservés.

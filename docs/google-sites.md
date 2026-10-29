@@ -33,10 +33,16 @@ Ces interactions ont aussi été vérifiées dans l’aperçu Google Sites avec 
 
 ## Mise à jour du 29 octobre 2026
 
-Relevé intégré : 30 Volkornes niveau 71, 18 Ga Pa (60 %), 790 runes de stats non valorisées. Les contrôles focus PA sont retirés. Les anciennes sauvegardes sont migrées vers le schéma v5. Le bouton « Charger mon relevé » conserve les prix, configure ce lot et permet la comparaison avec le niveau 53.
+Relevé intégré : 30 Volkornes niveau 71, 18 Ga Pa (60 %), 790 runes de stats non valorisées. Les contrôles focus PA sont retirés. Les anciennes sauvegardes sont migrées vers le schéma v5. Cette première version du bouton « Charger mon relevé » conservait tous les prix ; la correction ci-dessous charge désormais le carburant communiqué.
 
 Avec les prix initiaux, le lot niveau 71 utilise 5 filets renforcés et 39 Extraits : 146 000 k de frais, 352 800 k de recettes nettes et 206 800 k de bénéfice estimé. La comparaison porte sur deux lots de tailles et conditions différentes et ne démontre pas un optimum global.
 
 Vérification navigateur du 29 octobre : le bouton charge 30 / 71 / 60 % et affiche +206 800 k ; passer au niveau 53 restaure 38,32 % et affiche +106 322 k pour le même lot. Revenir au niveau 71 puis sélectionner le filet multiplicateur restaure 42 000 k et affiche +168 300 k. Sélectionner le Gigantesque Extrait à 1 500 k ramène la consommation à 24 unités et affiche +190 800 k. Le retour au filet renforcé et à l’Extrait restaure +206 800 k. Les réglages focus sont absents ; les autres ventes valent zéro dans ce scénario.
 
 Republication effectuée sur la même adresse et vérifiée dans l’aperçu puis sur le site public. Source du calculateur : `e511f9c8eb12840b755be94e3aa881aea65c6cd5`. Le bouton du relevé affiche bien 18 Ga Pa, 352 800 k de recettes après taxe et 206 800 k de bénéfice avec les prix initiaux. Les 39 tests et la CI de ce commit passent.
+
+## Correction du carburant du relevé niveau 71
+
+Précision de l’utilisateur : 8 Gigantesques Extraits à 2 400 k **par groupe de 10**, soit 24 unités et 57 600 k pour 30 montures. Le bouton du relevé charge ce carburant, son prix, une charge de 10 000 points, le départ au niveau 1 et une réserve nulle. Les prix personnalisés des filets sont conservés. Les sauvegardes restent en version 5 ; recharger le relevé applique ses nouveaux réglages de carburant.
+
+Avec 5 filets renforcés à 17 500 k : frais de 145 100 k, recettes nettes de 352 800 k et bénéfice de 207 700 k à 20 000 k/Ga Pa. Les résultats précédents de 206 800 k décrivent la version publiée avant cette précision.

@@ -242,9 +242,16 @@ document.addEventListener('click', event => {
     const row = CRUSHING_OBSERVATIONS.find(r => r.level === Number(documented.dataset.documentedScenario));
     config.model = 'community'; config.level = row.level; config.normalRate = row.normal * 100;
     if (row.origin === 'user') { config.count = row.mounts; config.otherRunes = 0; }
+    if (row.fuel) {
+      config.fuelId = row.fuel.id;
+      config.fuelPrices[config.fuelId] = row.fuel.price;
+      config.charge = FUELS.find(f => f.id === config.fuelId).charge;
+      config.startLevel = 1;
+      config.reserve = 0;
+    }
     if (config.startLevel > row.level) config.startLevel = 1;
     fillInputs(); render(); setTab('simulation');
-    toast(`Relevé chargé : niveau ${row.level}, ${precise.format(row.normal * 100)} %. Vos prix sont conservés.${row.statRunes ? ' Les runes de stats ne sont pas valorisées.' : ''}`);
+    toast(`Relevé chargé : niveau ${row.level}, ${precise.format(row.normal * 100)} %. ${row.fuel ? 'Carburant du relevé chargé, prix des filets conservés.' : 'Vos prix sont conservés.'}${row.statRunes ? ' Les runes de stats ne sont pas valorisées.' : ''}`);
   }
   if (event.target.closest('[data-enter-rate]')) {
     $('#normalRate').focus();
